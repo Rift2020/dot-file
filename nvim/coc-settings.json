@@ -1,0 +1,36 @@
+{
+"languageserver": {
+  "clangd": {
+    "command": "clangd-12",
+    "rootPatterns": ["compile_flags.txt", "compile_commands.json"],
+    "filetypes": ["c", "cc", "cpp", "c++", "objc", "objcpp"]
+  }
+},
+
+    "languageserver": {
+        "svlangserver": {
+            "module": "/usr/local/lib/node_modules/@imc-trading/svlangserver/lib/svlangserver.js",
+            "filetypes": ["systemverilog","verilog"],
+            "settings": {
+                "systemverilog.includeIndexing": ["**/*.{sv,svh}"],
+                "systemverilog.excludeIndexing": ["test/**/*.sv*"],
+                "systemverilog.defines" : [],
+                "systemverilog.launchConfiguration": "/TOOL/PATH/verilator -sv -Wall --lint-only",
+                "systemverilog.formatCommand": "/TOOL/PATH/verible-verilog-format"
+            }
+        }
+    },
+    	"snippets.userSnippetsDirectory": "~/.config/nvim/coc-extension-config/coc-snippets",
+	"snippets.priority": 100,
+	"snippets.extends": {
+		"systemverilog":["verilog"]
+	},
+	"pairs.enableCharacters": [
+		"(",
+		"[",
+		"{",
+		"'",
+		"\"",
+		"`"
+	]	
+}
