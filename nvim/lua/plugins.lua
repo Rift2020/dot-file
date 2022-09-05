@@ -31,6 +31,9 @@ require('packer').startup(function(use)
         })
     end
 	})
+
+	use {'ojroques/vim-oscyank',branch = 'main'}
+
 	if packer_bootstrap then
 		require('packer').sync()
 	end
