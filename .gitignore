@@ -1,0 +1,5 @@
+*/
+!.gitignore
+!zsh/
+!nvim/
+nvim/plugin
