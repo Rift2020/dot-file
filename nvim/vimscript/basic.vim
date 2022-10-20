@@ -2,7 +2,7 @@ set number
 set tabstop=4
 set shiftwidth=4
 set autoindent
-set cindent
+set autoindent
 set laststatus=2
 set completeopt=""
 set mouse=a
