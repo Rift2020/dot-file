@@ -50,3 +50,5 @@ setopt prompt_subst
 PROMPT='❰%{$fg[green]%}%n%{$reset_color%}|%{$fg[yellow]%}%1~%{$reset_color%}%{$fg[blue]%}$(git branch --show-current 2&> /dev/null | xargs -I branch echo "(branch)")%{$reset_color%}❱ '
 
 bindkey '^n' autosuggest-accept
+
+alias python='python3'
