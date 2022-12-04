@@ -5,7 +5,7 @@ map <C-c> "+y :OSCYankReg + "+ <CR>
 map <F12> :MarkdownPreview<CR>
 
 "F9编译并运行
-nnoremap <F9> :call CompileRunGcc()<CR>
+autocmd FileType c,cpp nnoremap <F9> :call CompileRunGcc()<CR>
 nnoremap <F8> :call OpenInputFile()<CR>
 
 "将当前文件<filename>.cpp 
