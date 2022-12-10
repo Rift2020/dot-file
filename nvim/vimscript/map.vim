@@ -4,7 +4,6 @@ map <C-a> <ESC>gg0vG$
 map <C-c> "+y :OSCYankReg + "+ <CR>
 map <F12> :MarkdownPreview<CR>
 
-autocmd FileType markdown inoremap <CR> <CR><CR>
 "F9编译并运行
 autocmd FileType c,cpp nnoremap <F9> :call CompileRunGcc()<CR>
 nnoremap <F8> :call OpenInputFile()<CR>
