@@ -3,4 +3,5 @@
 !.gitignore
 !zsh/
 !nvim/
+!nixos/
 nvim/plugin
