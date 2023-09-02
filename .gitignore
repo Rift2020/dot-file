@@ -1,7 +1,6 @@
-*/
-*
+/*
 !.gitignore
-!zsh/
-!nvim/
-!nixos/
+!/zsh/.zshrc
+!/nvim
+!/nixos
 nvim/plugin
