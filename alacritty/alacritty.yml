@@ -1,0 +1,18 @@
+colors:
+  primary:
+    background: '#000000'
+    foreground: '#ffffff'
+window:
+  opacity: 1
+  # Values for `startup_mode`:
+  #   - Windowed
+  #   - Maximized
+  #   - Fullscreen
+  startup_mode: Maximized
+scrolling:
+  # Maximum number of lines in the scrollback buffer.
+  # Specifying '0' will disable scrolling.
+  #history: 10000
+
+  # Scrolling distance multiplier.
+  multiplier: 3

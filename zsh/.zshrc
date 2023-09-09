@@ -36,6 +36,7 @@ antigen bundle zsh-users/zsh-syntax-highlighting
 antigen bundle agkozak/zsh-z
 
 antigen theme af-magic
+#antigen theme superjarin
 
 antigen apply
 

@@ -1,7 +1,7 @@
-map <F2> :NvimTreeToggle<CR>
+map <F6> :NvimTreeToggle<CR>
 
 map <C-a> <ESC>gg0vG$
-map <C-c> "+y :OSCYankReg + "+ <CR>
+map <C-c> "+y :OSCYankRegister + "+ <CR>
 map <F12> :MarkdownPreview<CR>
 
 "F9编译并运行

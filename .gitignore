@@ -1,6 +1,9 @@
 /*
 !.gitignore
-!/zsh/.zshrc
+!/zsh
+/zsh/.zshrc.zwc
 !/nvim
-!/nixos
 nvim/plugin
+!/nixos
+!/alacritty
+!/tmux
