@@ -1,29 +1,33 @@
+
+# 改为使用包管理器管理antigen
+ANTIGEN="/usr/share/zsh/share/antigen.zsh"
+
 # 如果没有antigen则自动安装
 
-ANTIGEN="$HOME/program/antigen.zsh"
+#ANTIGEN="$HOME/program/antigen.zsh"
 
-if [ ! -f "$ANTIGEN" ]; then
-	echo "Installing antigen ..."
-	[ ! -d "$HOME/program" ] && mkdir -p "$HOME/program" 2> /dev/null
-	# [ ! -f "$HOME/.z" ] && touch "$HOME/.z"
-	URL="http://git.io/antigen"
-	TMPFILE="/tmp/antigen.zsh"
-	if [ -x "$(which curl)" ]; then
-		curl -L "$URL" -o "$TMPFILE" 
-	elif [ -x "$(which wget)" ]; then
-		wget "$URL" -O "$TMPFILE" 
-	else
-		echo "ERROR: please install curl or wget before installation !!"
-		exit
-	fi
-	if [ ! $? -eq 0 ]; then
-		echo ""
-		echo "ERROR: downloading antigen.zsh ($URL) failed !!"
-		exit
-	fi;
-	echo "move $TMPFILE to $ANTIGEN"
-	mv "$TMPFILE" "$ANTIGEN"
-fi
+#if [ ! -f "$ANTIGEN" ]; then
+#	echo "Installing antigen ..."
+#	[ ! -d "$HOME/program" ] && mkdir -p "$HOME/program" 2> /dev/null
+#	# [ ! -f "$HOME/.z" ] && touch "$HOME/.z"
+#	URL="http://git.io/antigen"
+#	TMPFILE="/tmp/antigen.zsh"
+#	if [ -x "$(which curl)" ]; then
+#		curl -L "$URL" -o "$TMPFILE" 
+#	elif [ -x "$(which wget)" ]; then
+#		wget "$URL" -O "$TMPFILE" 
+#	else
+#		echo "ERROR: please install curl or wget before installation !!"
+#		exit
+#	fi
+#	if [ ! $? -eq 0 ]; then
+#		echo ""
+#		echo "ERROR: downloading antigen.zsh ($URL) failed !!"
+#		exit
+#	fi;
+#	echo "move $TMPFILE to $ANTIGEN"
+#	mv "$TMPFILE" "$ANTIGEN"
+#fi
 
 # 启用插件
 source "$ANTIGEN" 
@@ -53,3 +57,5 @@ PROMPT='❰%{$fg[green]%}%n%{$reset_color%}|%{$fg[yellow]%}%1~%{$reset_color%}%{
 bindkey '^n' autosuggest-accept
 
 alias python='python3'
+
+export LUA_PATH="/home/rift/.config/nvim/?.lua;;"
