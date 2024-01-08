@@ -59,3 +59,4 @@ bindkey '^n' autosuggest-accept
 alias python='python3'
 
 export LUA_PATH="/home/rift/.config/nvim/?.lua;;"
+export EDITOR=nvim

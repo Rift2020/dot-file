@@ -1,0 +1,10 @@
+[colors.primary]
+background = "#000000"
+foreground = "#ffffff"
+
+[scrolling]
+multiplier = 3
+
+[window]
+opacity = 1
+startup_mode = "Maximized"
