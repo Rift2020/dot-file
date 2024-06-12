@@ -35,6 +35,12 @@ require("lazy").setup({
         })
     end
     },
+	
+    {
+    'nvim-telescope/telescope.nvim', tag = '0.1.6',
+	-- or                              , branch = '0.1.x',
+      dependencies = { 'nvim-lua/plenary.nvim','BurntSushi/ripgrep' }
+    },
 
     {
     "kylechui/nvim-surround",
@@ -76,3 +82,4 @@ require'nvim-lastplace'.setup {
 }
 require('basic')
 vim.cmd 'source ~/.config/nvim/map.vim'
+vim.g.coc_global_extensions = {'coc-snippets','coc-pairs','coc-rust-analyzer','coc-pyright','coc-json','coc-clangd','coc-toml'}
