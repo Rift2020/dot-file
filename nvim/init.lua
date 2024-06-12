@@ -56,6 +56,7 @@ require("lazy").setup({
     },
     
     {"ojroques/vim-oscyank", branch="main"},
+	{"ethanholz/nvim-lastplace",lazy=false},
 
 	{
     "iamcco/markdown-preview.nvim",
@@ -68,5 +69,10 @@ require('lualine').setup()
 require("config.catppuccin")
 require("config.coc")
 require('Comment').setup()
+require'nvim-lastplace'.setup {
+    lastplace_ignore_buftype = {"quickfix", "nofile", "help"},
+    lastplace_ignore_filetype = {"gitcommit", "gitrebase", "svn", "hgcommit"},
+    lastplace_open_folds = true
+}
 require('basic')
 vim.cmd 'source ~/.config/nvim/map.vim'
