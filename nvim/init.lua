@@ -1,5 +1,8 @@
 --git needed
+--nodejs,npm needed(for coc.nvim)
 --Nerd font optional
+--python & python-pynvim(archlinux package) needed (for coc-snippets)
+--
 --
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
 if not vim.loop.fs_stat(lazypath) then

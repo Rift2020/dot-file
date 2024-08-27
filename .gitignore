@@ -3,7 +3,7 @@
 !/zsh
 /zsh/.zshrc.zwc
 !/nvim
-nvim/plugin
+nvim/lazy-lock.json
 !/nixos
 !/alacritty
 !/tmux
