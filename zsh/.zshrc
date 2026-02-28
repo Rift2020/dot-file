@@ -1,6 +1,17 @@
 
 # 改为使用包管理器管理antigen
-ANTIGEN="/usr/share/zsh/share/antigen.zsh"
+case "$(uname -s)" in
+  Darwin)
+    if [ -f /opt/homebrew/share/antigen/antigen.zsh ]; then
+      source /opt/homebrew/share/antigen/antigen.zsh
+    else
+      source /usr/local/share/antigen/antigen.zsh
+    fi
+    ;;
+  Linux)
+    source /usr/share/zsh/share/antigen.zsh
+    ;;
+esac
 
 # 如果没有antigen则自动安装
 
@@ -30,7 +41,6 @@ ANTIGEN="/usr/share/zsh/share/antigen.zsh"
 #fi
 
 # 启用插件
-source "$ANTIGEN" 
 antigen use oh-my-zsh
 
 antigen bundle git

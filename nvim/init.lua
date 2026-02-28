@@ -63,18 +63,45 @@ require("lazy").setup({
     opts_extend = { "sources.default" },
   },
 
-  {
-    "nvim-treesitter/nvim-treesitter",
-    build = ":TSUpdate",
-    config = function()
-      require("nvim-treesitter").setup({
-        ensure_installed = { "c", "lua", "vim", "vimdoc", "query", "rust", "python" },
-        sync_install = false,
-        highlight = { enable = true },
-        indent = { enable = true },
-      })
-    end,
-  },
+{
+  "nvim-treesitter/nvim-treesitter",
+  branch = "main",
+  lazy = false,
+  build = ":TSUpdate",
+  config = function()
+    require("nvim-treesitter").setup({})
+
+    require("nvim-treesitter").install({
+      "lua",
+      "python",
+      "c",
+      "cpp",
+      "rust",
+      "go",
+      "bash",
+    })
+
+    -- bash 的查询也用于 sh / zsh（可选，但很实用）
+    vim.treesitter.language.register("bash", { "sh", "zsh" })
+
+    vim.api.nvim_create_autocmd("FileType", {
+      pattern = {
+        "lua",
+        "python",
+        "c",
+        "cpp",
+        "rust",
+        "go",
+        "bash",
+        "sh",
+        "zsh",
+      },
+      callback = function()
+        pcall(vim.treesitter.start)
+      end,
+    })
+  end,
+},
 
   {
     "nvim-telescope/telescope.nvim",
