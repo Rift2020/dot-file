@@ -100,14 +100,6 @@ require("lazy").setup({
 
   { "ojroques/vim-oscyank", branch = "main" },
 
-  {
-    "iamcco/markdown-preview.nvim",
-    cmd = { "MarkdownPreviewToggle", "MarkdownPreview", "MarkdownPreviewStop" },
-    ft = { "markdown" },
-    build = function()
-      vim.fn["mkdp#util#install"]()
-    end,
-  },
 })
 
 require("lualine").setup()
