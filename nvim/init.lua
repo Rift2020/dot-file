@@ -47,21 +47,28 @@ require("lazy").setup({
     },
   },
 
-  {
-    "saghen/blink.cmp",
-    version = "*",
-    opts = {
-      keymap = { preset = "default" },
-      completion = {
-        documentation = { auto_show = true, auto_show_delay_ms = 200 },
-      },
-      sources = {
-        default = { "lsp", "path", "buffer" },
-      },
-      fuzzy = { implementation = "prefer_rust_with_warning" },
+{
+  "saghen/blink.cmp",
+  version = "*",
+  opts = {
+    keymap = {
+      preset = "default",
+      ["<Right>"] = { "snippet_forward", "fallback" },
+      ["<Left>"] = { "snippet_backward", "fallback" },
+      ["<Tab>"] = { "select_next", "fallback" },
+      ["<CR>"] = { "accept", "fallback" },
+      -- ["<C-y>"] = false,
     },
-    opts_extend = { "sources.default" },
+    completion = {
+      documentation = { auto_show = true, auto_show_delay_ms = 200 },
+    },
+    sources = {
+      default = { "lsp", "path", "buffer" },
+    },
+    fuzzy = { implementation = "prefer_rust_with_warning" },
   },
+  opts_extend = { "sources.default" },
+},
 
 {
   "nvim-treesitter/nvim-treesitter",
