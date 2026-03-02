@@ -5,7 +5,7 @@ set.tabstop = 4
 set.shiftwidth = 4
 set.autoindent = true
 set.laststatus = 2
-set.completeopt = ""
+-- set.completeopt = ""
 set.softtabstop = 4
 
 -- Restore cursor to the last known position when reopening a file.
