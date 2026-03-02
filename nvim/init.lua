@@ -136,6 +136,23 @@ require("lazy").setup({
     lazy = false,
   },
 
+  {
+    "windwp/nvim-autopairs",
+    event = "InsertEnter",
+    config = function()
+      require("nvim-autopairs").setup({})
+    end,
+  },
+
+  {
+    "rachartier/tiny-inline-diagnostic.nvim",
+    event = "VeryLazy",
+    config = function()
+      require("tiny-inline-diagnostic").setup({})
+      vim.diagnostic.config({ virtual_text = false })
+    end,
+  },
+
   { "ojroques/vim-oscyank", branch = "main" },
 
 })
