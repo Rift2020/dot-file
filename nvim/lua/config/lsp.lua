@@ -45,7 +45,6 @@ for server_name, server_opts in pairs(servers) do
   vim.lsp.config(server_name, server_opts)
 end
 
-vim.lsp.enable(vim.tbl_keys(servers))
 
 vim.api.nvim_create_autocmd("LspAttach", {
   callback = function(args)

@@ -19,6 +19,10 @@
 --   macOS (Homebrew): brew install git curl ripgrep node && xcode-select --install
 -- Nerd font optional
 
+if vim.fn.has("nvim-0.11") == 0 then
+  error("This configuration requires Neovim >= 0.11")
+end
+
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
 if not vim.loop.fs_stat(lazypath) then
   vim.fn.system({
@@ -141,4 +145,4 @@ require("config.catppuccin")
 require("config.lsp")
 require("Comment").setup()
 require("basic")
-vim.cmd("source ~/.config/nvim/map.vim")
+vim.cmd.source(vim.fs.joinpath(vim.fn.stdpath("config"), "map.vim"))
