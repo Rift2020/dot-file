@@ -11,6 +11,8 @@
 --    - terminal must support OSC52 (e.g. iTerm2/Kitty/WezTerm/tmux configured for OSC52)
 -- 6) LSP servers are managed by mason-lspconfig in this config:
 --    - keep network access available on first run for automatic server install
+-- 7) C/C++ formatting on buffer leave is powered by conform.nvim + clang-format:
+--    - remember to install clang-format (binary: clang-format)
 --
 -- Quick install examples:
 --   Ubuntu/Debian: sudo apt install git curl unzip tar gzip ripgrep build-essential nodejs npm
@@ -49,6 +51,26 @@ require("lazy").setup({
       "williamboman/mason-lspconfig.nvim",
       "saghen/blink.cmp",
     },
+  },
+
+  {
+    "stevearc/conform.nvim",
+    event = { "BufReadPre", "BufNewFile" },
+    config = function()
+      require("conform").setup({
+        formatters_by_ft = {
+          c = { "clang_format" },
+          cpp = { "clang_format" },
+        },
+        -- Keep this simple per conform.nvim README: enable built-in format-on-save.
+        format_on_save = function(bufnr)
+          local ft = vim.bo[bufnr].filetype
+          if ft == "c" or ft == "cpp" then
+            return { timeout_ms = 500, lsp_format = "never" }
+          end
+        end,
+      })
+    end,
   },
 
 {
