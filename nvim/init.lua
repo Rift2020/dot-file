@@ -61,11 +61,13 @@ require("lazy").setup({
         formatters_by_ft = {
           c = { "clang_format" },
           cpp = { "clang_format" },
+          h = { "clang_format" },
+          hpp = { "clang_format" },
         },
         -- Keep this simple per conform.nvim README: enable built-in format-on-save.
         format_on_save = function(bufnr)
           local ft = vim.bo[bufnr].filetype
-          if ft == "c" or ft == "cpp" then
+          if ft == "c" or ft == "cpp" or ft == "h" or ft == "hpp" then
             return { timeout_ms = 500, lsp_format = "never" }
           end
         end,
