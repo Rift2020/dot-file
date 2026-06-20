@@ -22,162 +22,181 @@
 -- Nerd font optional
 
 if vim.fn.has("nvim-0.11") == 0 then
-  error("This configuration requires Neovim >= 0.11")
+	error("This configuration requires Neovim >= 0.11")
 end
 
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
 if not vim.loop.fs_stat(lazypath) then
-  vim.fn.system({
-    "git",
-    "clone",
-    "--filter=blob:none",
-    "https://github.com/folke/lazy.nvim.git",
-    "--branch=stable", -- latest stable release
-    lazypath,
-  })
+	vim.fn.system({
+		"git",
+		"clone",
+		"--filter=blob:none",
+		"https://github.com/folke/lazy.nvim.git",
+		"--branch=stable", -- latest stable release
+		lazypath,
+	})
 end
 vim.opt.rtp:prepend(lazypath)
 
 require("lazy").setup({
-  -- theme
-  { "catppuccin/nvim", name = "catppuccin", priority = 1000 },
+	-- theme
+	{ "catppuccin/nvim", name = "catppuccin", priority = 1000 },
 
-  { "nvim-lualine/lualine.nvim", lazy = false },
+	{
+		"folke/which-key.nvim",
+		event = "VeryLazy",
+		opts = {
+			-- your configuration comes here
+			-- or leave it empty to use the default settings
+			-- refer to the configuration section below
+		},
+		keys = {
+			{
+				"<leader>?",
+				function()
+					require("which-key").show({ global = false })
+				end,
+				desc = "Buffer Local Keymaps (which-key)",
+			},
+		},
+	},
 
-  {
-    "neovim/nvim-lspconfig",
-    dependencies = {
-      "williamboman/mason.nvim",
-      "williamboman/mason-lspconfig.nvim",
-      "saghen/blink.cmp",
-    },
-  },
+	{ "nvim-lualine/lualine.nvim", lazy = false },
 
-  {
-    "stevearc/conform.nvim",
-    event = { "BufReadPre", "BufNewFile" },
-    config = function()
-      require("conform").setup({
-        formatters_by_ft = {
-          c = { "clang_format" },
-          cpp = { "clang_format" },
-          h = { "clang_format" },
-          hpp = { "clang_format" },
-        },
-        -- Keep this simple per conform.nvim README: enable built-in format-on-save.
-        format_on_save = function(bufnr)
-          local ft = vim.bo[bufnr].filetype
-          if ft == "c" or ft == "cpp" or ft == "h" or ft == "hpp" then
-            return { timeout_ms = 500, lsp_format = "never" }
-          end
-        end,
-      })
-    end,
-  },
+	{
+		"neovim/nvim-lspconfig",
+		dependencies = {
+			"williamboman/mason.nvim",
+			"williamboman/mason-lspconfig.nvim",
+			"saghen/blink.cmp",
+		},
+	},
 
-{
-  "saghen/blink.cmp",
-  version = "*",
-  opts = {
-    keymap = {
-      preset = "default",
-      ["<Right>"] = { "snippet_forward", "fallback" },
-      ["<Left>"] = { "snippet_backward", "fallback" },
-      ["<Tab>"] = { "select_next", "fallback" },
-      ["<CR>"] = { "accept", "fallback" },
-      -- ["<C-y>"] = false,
-    },
-    completion = {
-      documentation = { auto_show = true, auto_show_delay_ms = 200 },
-    },
-    sources = {
-      default = { "lsp", "path", "buffer" },
-    },
-    fuzzy = { implementation = "prefer_rust_with_warning" },
-  },
-  opts_extend = { "sources.default" },
-},
+	{
+		"stevearc/conform.nvim",
+		event = { "BufReadPre", "BufNewFile" },
+		config = function()
+			require("conform").setup({
+				formatters_by_ft = {
+					c = { "clang_format" },
+					cpp = { "clang_format" },
+					h = { "clang_format" },
+					hpp = { "clang_format" },
+				},
+				-- Keep this simple per conform.nvim README: enable built-in format-on-save.
+				format_on_save = function(bufnr)
+					local ft = vim.bo[bufnr].filetype
+					if ft == "c" or ft == "cpp" or ft == "h" or ft == "hpp" then
+						return { timeout_ms = 500, lsp_format = "never" }
+					end
+				end,
+			})
+		end,
+	},
 
-{
-  "nvim-treesitter/nvim-treesitter",
-  branch = "main",
-  lazy = false,
-  build = ":TSUpdate",
-  config = function()
-    require("nvim-treesitter").setup({})
+	{
+		"saghen/blink.cmp",
+		version = "*",
+		opts = {
+			keymap = {
+				preset = "default",
+				["<Right>"] = { "snippet_forward", "fallback" },
+				["<Left>"] = { "snippet_backward", "fallback" },
+				["<Tab>"] = { "select_next", "fallback" },
+				["<CR>"] = { "accept", "fallback" },
+				-- ["<C-y>"] = false,
+			},
+			completion = {
+				documentation = { auto_show = true, auto_show_delay_ms = 200 },
+			},
+			sources = {
+				default = { "lsp", "path", "buffer" },
+			},
+			fuzzy = { implementation = "prefer_rust_with_warning" },
+		},
+		opts_extend = { "sources.default" },
+	},
 
-    require("nvim-treesitter").install({
-      "lua",
-      "python",
-      "c",
-      "cpp",
-      "rust",
-      "go",
-      "bash",
-    })
+	{
+		"nvim-treesitter/nvim-treesitter",
+		branch = "main",
+		lazy = false,
+		build = ":TSUpdate",
+		config = function()
+			require("nvim-treesitter").setup({})
 
-    -- bash 的查询也用于 sh / zsh（可选，但很实用）
-    vim.treesitter.language.register("bash", { "sh", "zsh" })
+			require("nvim-treesitter").install({
+				"lua",
+				"python",
+				"c",
+				"cpp",
+				"rust",
+				"go",
+				"bash",
+			})
 
-    vim.api.nvim_create_autocmd("FileType", {
-      pattern = {
-        "lua",
-        "python",
-        "c",
-        "cpp",
-        "rust",
-        "go",
-        "bash",
-        "sh",
-        "zsh",
-      },
-      callback = function()
-        pcall(vim.treesitter.start)
-      end,
-    })
-  end,
-},
+			-- bash 的查询也用于 sh / zsh（可选，但很实用）
+			vim.treesitter.language.register("bash", { "sh", "zsh" })
 
-  {
-    "nvim-telescope/telescope.nvim",
-    tag = "0.1.6",
-    -- `rg` is a system binary dependency (ripgrep), not a Neovim plugin dependency.
-    dependencies = { "nvim-lua/plenary.nvim" },
-  },
+			vim.api.nvim_create_autocmd("FileType", {
+				pattern = {
+					"lua",
+					"python",
+					"c",
+					"cpp",
+					"rust",
+					"go",
+					"bash",
+					"sh",
+					"zsh",
+				},
+				callback = function()
+					pcall(vim.treesitter.start)
+				end,
+			})
+		end,
+	},
 
-  {
-    "kylechui/nvim-surround",
-    version = "*",
-    event = "VeryLazy",
-    config = function()
-      require("nvim-surround").setup({})
-    end,
-  },
+	{
+		"nvim-telescope/telescope.nvim",
+		tag = "0.1.6",
+		-- `rg` is a system binary dependency (ripgrep), not a Neovim plugin dependency.
+		dependencies = { "nvim-lua/plenary.nvim" },
+	},
 
-  {
-    "numToStr/Comment.nvim",
-    opts = {},
-    lazy = false,
-  },
+	{
+		"kylechui/nvim-surround",
+		version = "*",
+		event = "VeryLazy",
+		config = function()
+			require("nvim-surround").setup({})
+		end,
+	},
 
-  {
-    "windwp/nvim-autopairs",
-    event = "InsertEnter",
-    config = function()
-      require("nvim-autopairs").setup({})
-    end,
-  },
+	{
+		"numToStr/Comment.nvim",
+		opts = {},
+		lazy = false,
+	},
 
-  {
-    "rachartier/tiny-inline-diagnostic.nvim",
-    event = "VeryLazy",
-    config = function()
-      require("tiny-inline-diagnostic").setup({})
-      vim.diagnostic.config({ virtual_text = false })
-    end,
-  },
+	{
+		"windwp/nvim-autopairs",
+		event = "InsertEnter",
+		config = function()
+			require("nvim-autopairs").setup({})
+		end,
+	},
 
-  { "ojroques/vim-oscyank", branch = "main" },
+	{
+		"rachartier/tiny-inline-diagnostic.nvim",
+		event = "VeryLazy",
+		config = function()
+			require("tiny-inline-diagnostic").setup({})
+			vim.diagnostic.config({ virtual_text = false })
+		end,
+	},
+
+	{ "ojroques/vim-oscyank", branch = "main" },
 
 })
 

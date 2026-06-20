@@ -8,3 +8,6 @@ multiplier = 3
 [window]
 opacity = 1
 startup_mode = "Maximized"
+
+[font]
+size = 18.0
