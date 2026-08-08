@@ -6,4 +6,5 @@
 nvim/lazy-lock.json
 !/nixos
 !/alacritty
+!/kitty
 !/tmux

@@ -1,0 +1,2 @@
+# Match Alacritty's `startup_mode = "Maximized"`.
+os_window_state maximized
