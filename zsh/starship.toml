@@ -1,0 +1,75 @@
+# Pink-forward Catppuccin Mocha accents on a pure-black terminal background.
+# Requires JetBrainsMono Nerd Font Mono for the semantic icons.
+add_newline = false
+format = "$username$hostname$directory$git_branch$git_status$python$conda$rust$cmd_duration$character"
+
+[username]
+show_always = true
+style_user = "bold #f5c2e7"
+style_root = "bold #f38ba8"
+format = "[$user]($style)"
+
+[hostname]
+ssh_only = true
+style = "bold #a6e3a1"
+format = "[@$hostname]($style)"
+
+[directory]
+style = "bold #cba6f7"
+truncation_length = 3
+truncate_to_repo = true
+read_only = " 󰌾"
+format = "  [$path]($style)[$read_only]($read_only_style)"
+
+[git_branch]
+symbol = ""
+style = "bold #f2cdcd"
+format = "  [$symbol$branch]($style)"
+
+[git_status]
+style = "bold #f2cdcd"
+format = "[$all_status$ahead_behind]($style)"
+conflicted = " 󰞇${count}"
+ahead = " ⇡${count}"
+behind = " ⇣${count}"
+diverged = " ⇕⇡${ahead_count}⇣${behind_count}"
+untracked = " ${count}"
+stashed = " ${count}"
+modified = " ${count}"
+staged = " ${count}"
+renamed = " 󰁕${count}"
+deleted = " ${count}"
+up_to_date = ""
+
+[python]
+symbol = " "
+style = "#b4befe"
+version_format = "${raw}"
+format = "  [$symbol$version( $virtualenv)]($style)"
+
+[conda]
+symbol = " "
+style = "#f5c2e7"
+format = "  [$symbol$environment]($style)"
+ignore_base = false
+
+[rust]
+symbol = "󱘗 "
+style = "#fab387"
+version_format = "${raw}"
+format = "  [$symbol$version]($style)"
+
+[cmd_duration]
+min_time = 2000
+style = "dimmed #f9e2af"
+format = "  [󱎫 $duration]($style)"
+
+[character]
+success_symbol = " [❯](bold #f5c2e7)"
+error_symbol = " [❯](bold #f38ba8)"
+
+[aws]
+disabled = true
+
+[gcloud]
+disabled = true

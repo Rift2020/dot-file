@@ -1,0 +1,7 @@
+# Keep fzf-tab after compinit but before plugins that wrap ZLE widgets.
+# Retain the familiar Oh My Zsh Git aliases without loading the full framework.
+ohmyzsh/ohmyzsh path:lib/git.zsh
+ohmyzsh/ohmyzsh path:plugins/git
+Aloxaf/fzf-tab
+zsh-users/zsh-autosuggestions
+zsh-users/zsh-syntax-highlighting
