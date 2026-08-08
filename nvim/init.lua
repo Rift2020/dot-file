@@ -5,6 +5,7 @@
 --    - ripgrep (command: rg)
 -- 3) Treesitter parser compilation toolchain:
 --    - gcc or clang, and make
+--    - tree-sitter-cli >= 0.26.1 (command: tree-sitter), installed via your package manager (not npm)
 -- 4) Markdown preview plugin (iamcco/markdown-preview.nvim):
 --    - nodejs and npm
 -- 5) Clipboard over SSH with vim-oscyank:
@@ -17,7 +18,7 @@
 -- Quick install examples:
 --   Ubuntu/Debian: sudo apt install git curl unzip tar gzip ripgrep build-essential nodejs npm
 --   Fedora: sudo dnf install git curl unzip tar gzip ripgrep gcc gcc-c++ make nodejs npm
---   Arch Linux: sudo pacman -S --needed git curl unzip tar gzip ripgrep base-devel nodejs npm
+--   Arch Linux: sudo pacman -S --needed git curl unzip tar gzip ripgrep base-devel nodejs npm tree-sitter-cli
 --   macOS (Homebrew): brew install git curl ripgrep node && xcode-select --install
 -- Nerd font optional
 
