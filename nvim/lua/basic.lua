@@ -8,6 +8,9 @@ set.laststatus = 2
 -- set.completeopt = ""
 set.softtabstop = 4
 
+-- Keep undo history across Neovim sessions in the default state directory.
+set.undofile = true
+
 -- Restore cursor to the last known position when reopening a file.
 vim.api.nvim_create_autocmd("BufReadPost", {
   callback = function()

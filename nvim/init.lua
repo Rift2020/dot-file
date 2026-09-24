@@ -160,7 +160,7 @@ require("lazy").setup({
 
 	{
 		"nvim-telescope/telescope.nvim",
-		tag = "0.1.6",
+		version = "*",
 		-- `rg` is a system binary dependency (ripgrep), not a Neovim plugin dependency.
 		dependencies = { "nvim-lua/plenary.nvim" },
 	},

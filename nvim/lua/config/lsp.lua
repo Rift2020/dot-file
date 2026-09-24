@@ -63,5 +63,13 @@ vim.api.nvim_create_autocmd("LspAttach", {
   end,
 })
 
+-- Show hints by default; F6 toggles them for the current buffer only.
+vim.lsp.inlay_hint.enable(true)
+vim.keymap.set({ "n", "i" }, "<F6>", function()
+  local filter = { bufnr = 0 }
+  local hints = vim.lsp.inlay_hint
+  hints.enable(not hints.is_enabled(filter), filter)
+end, { desc = "Toggle inlay hints", silent = true })
+
 vim.keymap.set("n", "[g", vim.diagnostic.goto_prev, { silent = true })
 vim.keymap.set("n", "]g", vim.diagnostic.goto_next, { silent = true })
