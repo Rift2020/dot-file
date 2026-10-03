@@ -1,0 +1,12 @@
+{
+  "defaultProjectTrust": "always",
+  "theme": "system",
+  "tuiMode": "fullscreen",
+  "compaction": {
+    "enabled": true
+  },
+  "lastChangelogVersion": "1.0.0",
+  "deviceId": "dd75a27c-1e05-4032-b133-850b3d9bf623",
+  "defaultProvider": "openai",
+  "defaultModel": "gpt-5.5"
+}
