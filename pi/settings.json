@@ -8,5 +8,14 @@
   "lastChangelogVersion": "1.0.0",
   "deviceId": "dd75a27c-1e05-4032-b133-850b3d9bf623",
   "defaultProvider": "openai",
-  "defaultModel": "gpt-5.5"
+  "defaultModel": "gpt-5.5",
+  "enabledModels": [
+    "deepseek/deepseek-flash:high",
+    "openai/gpt-6.1-sol:xhigh",
+    "openai/gpt-6-astra:xhigh"
+  ],
+  "hideThinkingBlock": false,
+  "packages": [
+    "npm:pi-web-access"
+  ]
 }
