@@ -4,4 +4,6 @@
 !settings.json
 !AGENTS.md
 !link.sh
+!apply-settings.mjs
+!test-link.mjs
 !web-search.json
