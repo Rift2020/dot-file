@@ -48,13 +48,13 @@ Pi 在界面中保存的偏好只写入本机配置，不会自动修改仓库�
 
 使用 Pi 原生 `enabledModels`，按以下顺序循环：
 
-1. DeepSeek V4.1 Flash：`deepseek/deepseek-flash:high`
-2. GPT-6.1 Sol：`openai/gpt-6.1-sol:xhigh`
-3. GPT-6 Astra：`openai/gpt-6-astra:xhigh`
+1. GPT-6.1 Sol：`openai/gpt-6.1-sol:high`（默认模型）
+2. GPT-6 Astra：`openai/gpt-6-astra:xhigh`
+3. DeepSeek V4.1 Flash：`deepseek/deepseek-flash:high`
 
 在 Pi 输入界面按 `Ctrl+P` 切到下一项，按 `Ctrl+Shift+P` 切到上一项；每次轮换同时应用该项指定的 effort。可用 `/thinking` 或 `Shift+Tab` 临时调整，下一次轮换回该模型时仍采用列表中的强度。
 
-仓库同时保留 `defaultProvider: "openai"`、`defaultModel: "gpt-5.5"` 的默认模型偏好。实际启动模型由 Pi 根据默认值、轮换范围、可用认证与命令行覆盖规则选择；继续历史会话会恢复原会话的模型和 effort。修改仓库中的设置后运行 `link.sh`，重新启动 Pi 使轮换列表生效。
+默认启动使用 `defaultProvider: "openai"`、`defaultModel: "gpt-6.1-sol"`、`defaultThinkingLevel: "high"`。`modelThinkingLevels` 同时声明三个模型各自的默认 effort（Sol 为 `high`、Astra 为 `xhigh`、DeepSeek 为 `high`），通过 `/model` 切换时也会应用；快捷轮换以 `enabledModels` 中的显式强度为准。实际启动仍受可用认证与命令行覆盖规则影响；继续历史会话会恢复原会话的模型和 effort。修改仓库中的设置后运行 `link.sh`，重新启动 Pi 使默认值与轮换列表生效。
 
 这里只限制快捷轮换范围，仍可用 `/model` 选择其他已接入模型。不需要预设扩展、提示词模板或 Skill。
 

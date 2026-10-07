@@ -6,11 +6,17 @@
     "enabled": true
   },
   "defaultProvider": "openai",
-  "defaultModel": "gpt-5.5",
+  "defaultModel": "gpt-6.1-sol",
+  "defaultThinkingLevel": "high",
+  "modelThinkingLevels": {
+    "openai/gpt-6.1-sol": "high",
+    "openai/gpt-6-astra": "xhigh",
+    "deepseek/deepseek-flash": "high"
+  },
   "enabledModels": [
-    "deepseek/deepseek-flash:high",
-    "openai/gpt-6.1-sol:xhigh",
-    "openai/gpt-6-astra:xhigh"
+    "openai/gpt-6.1-sol:high",
+    "openai/gpt-6-astra:xhigh",
+    "deepseek/deepseek-flash:high"
   ],
   "hideThinkingBlock": true,
   "packages": [
