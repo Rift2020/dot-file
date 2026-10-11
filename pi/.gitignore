@@ -7,3 +7,6 @@
 !apply-settings.mjs
 !test-link.mjs
 !web-search.json
+!test-base-prompt.mjs
+!extensions/
+!extensions/base-prompt.ts

@@ -1,9 +1,9 @@
 import { chmodSync, constants, copyFileSync, lstatSync, mkdirSync, readFileSync, readlinkSync, realpathSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 
-const [source, target] = process.argv.slice(2).map((path) => resolve(path));
-if (!source || !target) {
-  throw new Error("Usage: node apply-settings.mjs <source-settings> <target-settings>");
+const paths = process.argv.slice(2).map((path) => resolve(path));
+if (paths.length === 0 || paths.length % 2 !== 0) {
+  throw new Error("Usage: node apply-settings.mjs <source-settings> <target-settings> [<source> <target>]...");
 }
 
 function isObject(value) {
@@ -28,30 +28,35 @@ function merge(local, shared) {
   );
 }
 
-let stat;
-try {
-  stat = lstatSync(target);
-} catch (error) {
-  if (error.code !== "ENOENT") throw error;
-}
-if (stat?.isSymbolicLink()) {
-  if (resolve(dirname(target), readlinkSync(target)) !== source) {
-    throw new Error(`Existing symlink left untouched: ${target}`);
+// Validate every pair before writing any, so one bad file changes nothing.
+function plan(source, target) {
+  let stat;
+  try {
+    stat = lstatSync(target);
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
   }
-} else if (stat && !stat.isFile()) {
-  throw new Error(`Existing path is not a regular file: ${target}`);
+  if (stat?.isSymbolicLink()) {
+    if (resolve(dirname(target), readlinkSync(target)) !== source) {
+      throw new Error(`Existing symlink left untouched: ${target}`);
+    }
+  } else if (stat && !stat.isFile()) {
+    throw new Error(`Existing path is not a regular file: ${target}`);
+  }
+  const shared = readSettings(source);
+  const local = stat ? readSettings(target) : {};
+  mkdirSync(dirname(target), { recursive: true });
+  if (realpathSync(dirname(target)) === realpathSync(dirname(source))) {
+    throw new Error("Target directory must be outside the dotfiles Pi directory");
+  }
+  return { target, stat, content: `${JSON.stringify(merge(local, shared), null, 2)}\n` };
 }
 
-const shared = readSettings(source);
-const local = stat ? readSettings(target) : {};
-const content = `${JSON.stringify(merge(local, shared), null, 2)}\n`;
-mkdirSync(dirname(target), { recursive: true });
-if (realpathSync(dirname(target)) === realpathSync(dirname(source))) {
-  throw new Error("Target directory must be outside the dotfiles Pi directory");
-}
-if (stat?.isFile() && readFileSync(target, "utf8") === content) {
-  console.log(`Unchanged: ${target}`);
-} else {
+function apply({ target, stat, content }) {
+  if (stat?.isFile() && readFileSync(target, "utf8") === content) {
+    console.log(`Unchanged: ${target}`);
+    return;
+  }
   // Keep the first pre-deployment snapshot outside the repository.
   if (stat) {
     try {
@@ -71,3 +76,7 @@ if (stat?.isFile() && readFileSync(target, "utf8") === content) {
   }
   console.log(`Applied: ${target}`);
 }
+
+const plans = [];
+for (let index = 0; index < paths.length; index += 2) plans.push(plan(paths[index], paths[index + 1]));
+plans.forEach(apply);

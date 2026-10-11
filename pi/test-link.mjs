@@ -13,7 +13,8 @@ function fixture(t) {
   const source = join(root, "dot files");
   const target = join(root, "agent");
   mkdirSync(source);
-  for (const file of ["link.sh", "apply-settings.mjs", "settings.json", "AGENTS.md", "web-search.json"]) {
+  mkdirSync(join(source, "extensions"));
+  for (const file of ["link.sh", "apply-settings.mjs", "settings.json", "AGENTS.md", "web-search.json", "extensions/base-prompt.ts"]) {
     copyFileSync(join(config, file), join(source, file));
   }
   const settings = join(target, "settings.json");
@@ -38,12 +39,17 @@ test("fresh deployment and repeated application are idempotent", (t) => {
   assert.ok(lstatSync(f.settings).isFile());
   assert.equal(statSync(f.settings).mode & 0o777, 0o600);
   assert.deepEqual(f.read(), JSON.parse(readFileSync(join(f.source, "settings.json"))));
-  for (const file of ["AGENTS.md", "web-search.json"]) {
+  for (const file of ["AGENTS.md", "extensions/base-prompt.ts"]) {
     assert.equal(readlinkSync(join(f.target, file)), join(f.source, file));
   }
+  const search = join(f.target, "web-search.json");
+  assert.ok(lstatSync(search).isFile());
+  assert.deepEqual(JSON.parse(readFileSync(search, "utf8")), JSON.parse(readFileSync(join(f.source, "web-search.json"))));
   const before = statSync(f.settings).mtimeMs;
+  const searchBefore = statSync(search).mtimeMs;
   success(f.run());
   assert.equal(statSync(f.settings).mtimeMs, before);
+  assert.equal(statSync(search).mtimeMs, searchBefore);
   assert.equal(existsSync(`${f.settings}.before-dotfiles.bak`), false);
 });
 
@@ -72,6 +78,26 @@ test("merge preserves local state and nested settings, replaces shared arrays", 
   assert.equal(readFileSync(`${f.settings}.before-dotfiles.bak`, "utf8"), original);
 });
 
+test("search settings keep machine-only keys and migrate a legacy symlink", (t) => {
+  const f = fixture(t);
+  mkdirSync(f.target);
+  const search = join(f.target, "web-search.json");
+  const original = JSON.stringify({ ssrf: { allowRanges: ["10.0.0.0/8"] }, githubClone: { clonePath: "/local/cache" } });
+  writeFileSync(search, original);
+  success(f.run());
+  const shared = JSON.parse(readFileSync(join(f.source, "web-search.json")));
+  assert.deepEqual(JSON.parse(readFileSync(search, "utf8")), { ...shared, githubClone: { clonePath: "/local/cache" } });
+  assert.equal(readFileSync(`${search}.before-dotfiles.bak`, "utf8"), original);
+  assert.equal(statSync(search).mode & 0o777, 0o600);
+  const g = fixture(t);
+  mkdirSync(g.target);
+  const legacy = join(g.target, "web-search.json");
+  symlinkSync(join(g.source, "web-search.json"), legacy);
+  success(g.run());
+  assert.ok(lstatSync(legacy).isFile());
+  assert.deepEqual(JSON.parse(readFileSync(legacy, "utf8")), shared);
+});
+
 test("legacy settings symlink is migrated without writing to the repository", (t) => {
   const f = fixture(t);
   mkdirSync(f.target);
@@ -91,6 +117,20 @@ test("conflicting resource is left untouched before settings are changed", (t) =
   assert.equal(existsSync(f.settings), false);
   assert.equal(readFileSync(join(f.target, "AGENTS.md"), "utf8"), "local instructions");
   assert.equal(existsSync(join(f.target, "web-search.json")), false);
+});
+
+test("existing extension files and a non-directory extensions path are left untouched", (t) => {
+  const f = fixture(t);
+  mkdirSync(join(f.target, "extensions"), { recursive: true });
+  writeFileSync(join(f.target, "extensions/base-prompt.ts"), "local extension");
+  assert.notEqual(f.run().status, 0);
+  assert.equal(existsSync(f.settings), false);
+  assert.equal(readFileSync(join(f.target, "extensions/base-prompt.ts"), "utf8"), "local extension");
+  rmSync(join(f.target, "extensions"), { recursive: true });
+  writeFileSync(join(f.target, "extensions"), "not a directory");
+  assert.notEqual(f.run().status, 0);
+  assert.equal(existsSync(f.settings), false);
+  assert.equal(existsSync(join(f.target, "AGENTS.md")), false);
 });
 
 test("foreign and dangling settings symlinks are refused", (t) => {
@@ -115,6 +155,12 @@ test("invalid JSON and non-object settings cause no resource changes", (t) => {
     assert.equal(readFileSync(f.settings, "utf8"), content);
     assert.equal(existsSync(join(f.target, "AGENTS.md")), false);
   }
+  // A bad second file stops the run before the first one is written.
+  rmSync(f.settings);
+  writeFileSync(join(f.target, "web-search.json"), "invalid");
+  assert.notEqual(f.run().status, 0);
+  assert.equal(existsSync(f.settings), false);
+  assert.equal(readFileSync(join(f.target, "web-search.json"), "utf8"), "invalid");
 });
 
 test("missing source and settings directory are refused", (t) => {

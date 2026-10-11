@@ -9,9 +9,11 @@
 | `settings.json` | 可跨机器同步的偏好：项目信任、界面、上下文压缩、默认模型、轮换与插件列表 |
 | `web-search.json` | pi-web-access 的 Clash fake-IP 地址池兼容设置；不存放密钥 |
 | `AGENTS.md` | 中文协作、简单任务直接执行、复杂任务先讨论、尊重只读要求、证据与交付约定 |
-| `link.sh` | 部署入口：合并设置，链接协作约定和搜索配置 |
-| `apply-settings.mjs` | 将仓库偏好合并到本机可写的 `settings.json`，保留本机状态 |
+| `extensions/base-prompt.ts` | 全局扩展：替换 Pi 默认系统提示的身份句，去掉固定的“Be concise”，并告诉每个会话当天日期 |
+| `link.sh` | 部署入口：合并设置与搜索配置，链接协作约定和扩展 |
+| `apply-settings.mjs` | 将仓库偏好合并到本机可写的 `settings.json` 与 `web-search.json`，保留本机状态 |
 | `test-link.mjs` | 部署、重复执行、迁移、冲突与异常处理测试 |
+| `test-base-prompt.mjs` | 系统提示改写与日期的测试 |
 | `.gitignore` | 使用显式白名单，避免凭据、会话、缓存和运行状态误入 Git |
 
 `settings.json` 中由本方案设置的四项基础设置：
@@ -21,17 +23,33 @@
 - `tuiMode: "fullscreen"`：使用全屏界面。
 - `compaction.enabled: true`：保留自动上下文压缩，阈值沿用 Pi 默认值。
 
-后三项本身也是 Pi 1.0.4 的默认行为，在文件中写明以便理解和同步。`hideThinkingBlock: true` 隐藏对话中的思考块，不改变模型的推理强度。本方案保留原生 `read`、`bash`、`edit`、`write` 工具、自动保存会话和系统提示词。编辑器继承 `VISUAL` / `EDITOR`，不写机器专属路径。
+后三项本身也是 Pi 1.0.4 的默认行为，在文件中写明以便理解和同步。`hideThinkingBlock: true` 隐藏对话中的思考块，不改变模型的推理强度。本方案保留原生 `read`、`bash`、`edit`、`write` 工具和自动保存会话。编辑器继承 `VISUAL` / `EDITOR`，不写机器专属路径。
 
 Pi 在界面中保存的偏好只写入本机配置，不会自动修改仓库；需要同步的改动应更新本目录的 `settings.json`，然后重新运行 `link.sh`。
+
+## 系统提示
+
+Pi 默认系统提示的开头是 “You are an expert coding assistant…”，规则里固定有一条 “Be concise in your responses”。这里的用途不只是编程，回答长度也交给 `AGENTS.md` 的协作约定，所以 `extensions/base-prompt.ts` 在每轮开始前做三件事：
+
+- 把身份句换成“通用助手，帮助用户编程、学习、研究和写作”。
+- 删掉 “Be concise” 这一条，其他规则保持不变。
+- 增加 `<current_date>` 小节，写明本机时区的当天日期和星期。只写到日期，一天只变一次，对提示缓存影响很小；Pi 自己不提供日期。
+
+工具列表、工具规则、Pi 文档索引、`AGENTS.md`、skills 等部分仍由 Pi 和各扩展按原样生成。不用 `SYSTEM.md` 的原因：它会连同工具列表、工具规则和文档索引一起替换掉，其他扩展写的工具说明也会消失。项目自带 `SYSTEM.md` 时只加日期，不改写。
+
+扩展通过 `before_agent_start` 返回改写后的完整提示；会话记录里仍保存 Pi 的原始分节。Pi 升级后如果默认身份句的措辞变了，扩展不做改写，并在界面提示一次需要更新。learn 聊天和阅读线批处理也会加载这个全局扩展；learn 的整理工作会话不加载扩展，不受影响。
+
+## 插件
 
 已安装联网扩展 `pi-web-access`，保留默认自动选择搜索来源和 `workflow: none`（不打开结果整理页面、不额外生成摘要）；未添加搜索服务密钥。普通零配置搜索可使用 Exa MCP；选用通过 ChatGPT 登录的 OpenAI 模型时，插件会优先尝试复用该授权搜索。
 
 已安装状态栏扩展 `@reedchan/statusline`，沿用插件默认的两行布局，显示上下文占用、模型与 effort、缓存命中率、费用及首字延迟 / 输出速度。运行 `/reload` 或重启 Pi 后加载；`Ctrl+Q` 或 `/breakdown` 可切换上下文明细。当前未配置币种转换，费用按插件默认显示美元。
 
-`web-search.json` 仅设置 `ssrf.allowRanges: ["198.18.0.0/16"]`，适配本机 Clash 的 fake-IP 地址池，避免读取公网网页时被插件按保留地址拦截。其他地址的现有防护保留；其他机器使用前应确认该网段同样由可信代理接管，不使用 fake-IP 时应移除此项。搜索服务密钥使用环境变量等本机凭据来源，不写入这个受 Git 管理的文件。
+`web-search.json` 仅设置 `ssrf.allowRanges: ["198.18.0.0/16"]`，适配本机 Clash 的 fake-IP 地址池，避免读取公网网页时被插件按保留地址拦截。其他地址的现有防护保留；其他机器使用前应确认该网段同样由可信代理接管，不使用 fake-IP 时应移除此项。搜索服务密钥使用环境变量等本机凭据来源，不写入这个受 Git 管理的文件。只适用于某台机器的设置（例如本机为避开内存盘 `/tmp` 而设的 `githubClone.clonePath`）直接写在那台机器的 `~/.pi/agent/web-search.json`，部署时保留。
 
-不额外安装搜索 MCP、Office / PDF 工具、多代理或长期记忆系统；不创建固定 Chat / Work 工作目录。模型与推理强度按下方轮换列表设置。当前不包含自定义提示词模板或 Skill。
+已安装文档解析扩展 `pi-docparser`，固定版本 4.0.0（`pi update` 不会移动固定版本），提供 `document_parse`、`document_search`、`document_screenshot`：本地解析 PDF、按短语查页码、把页面渲染成图片；Office 转换需要另装 LibreOffice。
+
+不额外安装搜索 MCP、多代理或长期记忆系统；不创建固定 Chat / Work 工作目录。模型与推理强度按下方轮换列表设置。当前不包含自定义提示词模板或 Skill。
 
 ## 本机使用
 
@@ -68,17 +86,18 @@ sh ~/.config/pi/link.sh
 pi --version
 pi install npm:pi-web-access
 pi install npm:@reedchan/statusline
+pi install npm:pi-docparser@4.0.0
 ```
 
 上面的命令假定 dotfiles 已放到 `~/.config`；其他位置可以直接运行该位置的 `pi/link.sh`。目标默认是 `~/.pi/agent`，可通过 `PI_CODING_AGENT_DIR` 指定。Linux 按同样步骤独立安装、部署和登录；部署测试目前在 macOS 上运行。
 
 ### 偏好与本机状态分离
 
-- `AGENTS.md`、`web-search.json` 使用软链接，仓库修改直接反映到本机文件。
-- `settings.json` **不是软链接**：脚本将仓库设置递归合并到本机文件。仓库声明的键优先；没有声明的本机键（包括嵌套键）保留；数组整体替换。
+- `AGENTS.md` 和 `extensions/base-prompt.ts` 使用软链接，仓库修改直接反映到本机文件；扩展的改动在 `/reload` 或重启后生效。
+- `settings.json` 和 `web-search.json` **不是软链接**：脚本将仓库设置递归合并到本机文件。仓库声明的键优先；没有声明的本机键（包括嵌套键）保留；数组整体替换。
 - `deviceId`、`lastChangelogVersion` 不保存在仓库。Pi 可在本机维护这些状态而不会弄脏 Git 工作区。删除仓库中的某个键不会自动删除本机对应的键，需要在本机单独删除。
-- 首次变更已有设置时，原文件备份到目标目录的 `settings.json.before-dotfiles.bak`；不覆盖已有备份。写入通过同目录临时文件与原子替换完成，新设置和新备份权限为 `0600`。
-- 旧版指向本仓库 `settings.json` 的软链接会自动迁移为普通文件，不修改链接源。已有普通设置文件会合并；其他软链接、目录、无效 JSON，以及已有非本仓库的指令 / 搜索配置均拒绝覆盖。脚本先检查所有目标路径，重复部署相同设置不会重写文件。
+- 首次变更已有设置时，原文件备份到目标目录的 `<文件名>.before-dotfiles.bak`；不覆盖已有备份。写入通过同目录临时文件与原子替换完成，新设置和新备份权限为 `0600`。
+- 旧版指向本仓库 `settings.json` 或 `web-search.json` 的软链接会自动迁移为普通文件，不修改链接源。已有普通设置文件会合并；其他软链接、目录、无效 JSON，以及已有非本仓库的指令 / 扩展均拒绝覆盖。脚本先检查所有目标路径，两个设置文件都通过校验后才开始写入；重复部署相同设置不会重写文件。
 
 部署时避免同时在 Pi 的设置界面修改配置。正在运行的会话可以继续，设置重载或下次启动时读取本机文件。若需要回退本机设置，退出 Pi 后复制备份到 `settings.json`，再重启。
 
@@ -88,7 +107,7 @@ pi install npm:@reedchan/statusline
 
 ```sh
 sh -n ~/.config/pi/link.sh
-node --test ~/.config/pi/test-link.mjs
+node --test ~/.config/pi/test-link.mjs ~/.config/pi/test-base-prompt.mjs
 ```
 
 测试使用临时目录，不接触本机认证、会话或实际配置。
