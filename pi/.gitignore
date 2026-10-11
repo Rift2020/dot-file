@@ -8,5 +8,7 @@
 !test-link.mjs
 !web-search.json
 !test-base-prompt.mjs
+!test-prompt-export.mjs
 !extensions/
 !extensions/base-prompt.ts
+!extensions/prompt-export.ts

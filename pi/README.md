@@ -10,10 +10,12 @@
 | `web-search.json` | pi-web-access 的 Clash fake-IP 地址池兼容设置；不存放密钥 |
 | `AGENTS.md` | 中文协作、简单任务直接执行、复杂任务先讨论、尊重只读要求、证据与交付约定 |
 | `extensions/base-prompt.ts` | 全局扩展：替换 Pi 默认系统提示的身份句，去掉固定的“Be concise”，并告诉每个会话当天日期 |
+| `extensions/prompt-export.ts` | 全局扩展：`/export-prompt` 导出最近一次实际发给模型的系统提示、工具定义和请求原文 |
 | `link.sh` | 部署入口：合并设置与搜索配置，链接协作约定和扩展 |
 | `apply-settings.mjs` | 将仓库偏好合并到本机可写的 `settings.json` 与 `web-search.json`，保留本机状态 |
 | `test-link.mjs` | 部署、重复执行、迁移、冲突与异常处理测试 |
 | `test-base-prompt.mjs` | 系统提示改写与日期的测试 |
+| `test-prompt-export.mjs` | 各服务商请求格式的提取与导出测试 |
 | `.gitignore` | 使用显式白名单，避免凭据、会话、缓存和运行状态误入 Git |
 
 `settings.json` 中由本方案设置的四项基础设置：
@@ -38,6 +40,16 @@ Pi 默认系统提示的开头是 “You are an expert coding assistant…”，
 工具列表、工具规则、Pi 文档索引、`AGENTS.md`、skills 等部分仍由 Pi 和各扩展按原样生成。不用 `SYSTEM.md` 的原因：它会连同工具列表、工具规则和文档索引一起替换掉，其他扩展写的工具说明也会消失。项目自带 `SYSTEM.md` 时只加日期，不改写。
 
 扩展通过 `before_agent_start` 返回改写后的完整提示；会话记录里仍保存 Pi 的原始分节。Pi 升级后如果默认身份句的措辞变了，扩展不做改写，并在界面提示一次需要更新。learn 聊天和阅读线批处理也会加载这个全局扩展；learn 的整理工作会话不加载扩展，不受影响。
+
+### 查看实际发送的提示
+
+在会话里输入 `/export-prompt`，把本会话最近一次实际发给模型的请求导出到 `~/.cache/pi-prompt-exports/<时间>/`；也可以写 `/export-prompt <目录>` 指定位置（相对路径按当前工作目录）。导出三个文件：
+
+- `system-prompt.md`：系统提示原文，已经包含 `base-prompt` 等扩展的改写、`AGENTS.md`、skill 清单和应用追加的内容。会话记录里存的是 Pi 改写前的分节，看实际发送内容以这里为准。
+- `tools.md`：每个工具的名称、说明和参数结构，模型看到的工具说明都在这里。
+- `request.json`：完整请求体，包括对话内容。
+
+扩展只在内存里保留最近一次请求的引用，执行命令时才写文件；目录权限 0700、文件 0600，因为其中可能有记忆、规则和对话。新会话开始后要先发一条消息才能导出。支持 OpenAI（Responses 与 Chat Completions）、Anthropic 和 Google 的请求格式；`request.json` 总是原样保存。
 
 ## 插件
 
@@ -93,7 +105,7 @@ pi install npm:pi-docparser@4.0.0
 
 ### 偏好与本机状态分离
 
-- `AGENTS.md` 和 `extensions/base-prompt.ts` 使用软链接，仓库修改直接反映到本机文件；扩展的改动在 `/reload` 或重启后生效。
+- `AGENTS.md` 和 `extensions/` 下的扩展使用软链接，仓库修改直接反映到本机文件；扩展的改动在 `/reload` 或重启后生效。
 - `settings.json` 和 `web-search.json` **不是软链接**：脚本将仓库设置递归合并到本机文件。仓库声明的键优先；没有声明的本机键（包括嵌套键）保留；数组整体替换。
 - `deviceId`、`lastChangelogVersion` 不保存在仓库。Pi 可在本机维护这些状态而不会弄脏 Git 工作区。删除仓库中的某个键不会自动删除本机对应的键，需要在本机单独删除。
 - 首次变更已有设置时，原文件备份到目标目录的 `<文件名>.before-dotfiles.bak`；不覆盖已有备份。写入通过同目录临时文件与原子替换完成，新设置和新备份权限为 `0600`。
@@ -107,7 +119,7 @@ pi install npm:pi-docparser@4.0.0
 
 ```sh
 sh -n ~/.config/pi/link.sh
-node --test ~/.config/pi/test-link.mjs ~/.config/pi/test-base-prompt.mjs
+node --test ~/.config/pi/test-link.mjs ~/.config/pi/test-base-prompt.mjs ~/.config/pi/test-prompt-export.mjs
 ```
 
 测试使用临时目录，不接触本机认证、会话或实际配置。
