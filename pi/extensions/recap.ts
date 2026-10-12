@@ -1,0 +1,156 @@
+/**
+ * Session recap, after Claude Code's: when a run finishes, the current model
+ * writes one or two sentences on the goal, the current task and the next
+ * action. The recap is a custom session entry: shown in the chat, never sent
+ * to the model. /recap writes one now. Claude Code waits until the terminal
+ * has lost focus for a few minutes; this recaps as soon as the reply ends.
+ */
+import { convertToLlm, type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { Text } from "@earendil-works/pi-tui";
+
+/** Claude Code's recap prompt, plus a language rule for Chinese sessions. */
+export const RECAP_PROMPT = "The user stepped away and is coming back. Recap in under 40 words, 1-2 plain sentences, no markdown. "
+  + "Lead with the overall goal and current task, then the one next action. "
+  + "Skip root-cause narrative, fix internals, secondary to-dos, and em-dash tangents. "
+  + "Write in the language of the user's messages: if they write Chinese, answer in Chinese, under 80 characters.";
+export const RECAP_TYPE = "recap";
+/** Expensive models never recap on their own; an explicit /recap still runs. */
+export const EXCLUDED_MODELS: readonly string[] = ["openai/gpt-6-astra"];
+const MAX_CHARS = 400;
+/** Claude Code's defaults: 3 user turns before the first recap, 2 between recaps. */
+const MIN_USER_TURNS = 3;
+const TURNS_BETWEEN = 2;
+
+export interface RecapData {
+  text: string;
+  model: string;
+  at: string;
+  usage: { input: number; cacheRead: number; output: number; cost: number };
+}
+
+interface BranchEntry { type: string; customType?: string; message?: { role?: string } }
+type Json = Record<string, unknown>;
+const isObject = (value: unknown): value is Json => value !== null && typeof value === "object" && !Array.isArray(value);
+const isSystemItem = (item: unknown) => isObject(item) && (item.role === "system" || item.role === "developer");
+
+/**
+ * Give the recap request the exact prefix of the conversation's last request:
+ * its system prompt as sent (after extensions such as base-prompt rewrote it)
+ * and its tool list in order. Pi only knows its own original prompt, and a
+ * different prefix forfeits the provider's prompt cache. Covers OpenAI
+ * Responses and Chat, Anthropic and Google request bodies.
+ */
+export function alignPrefix(recap: unknown, last: unknown): unknown {
+  if (!isObject(recap) || !isObject(last)) return undefined;
+  const aligned: Json = { ...recap };
+  for (const key of ["instructions", "system", "tools"]) if (key in last) aligned[key] = last[key];
+  if (isObject(recap.config) && isObject(last.config)) {
+    aligned.config = { ...recap.config, systemInstruction: last.config.systemInstruction, tools: last.config.tools };
+  }
+  for (const key of ["input", "messages"]) {
+    const ours = recap[key], theirs = last[key];
+    if (!Array.isArray(ours) || !Array.isArray(theirs)) continue;
+    const lead = (items: unknown[]) => { let count = 0; while (count < items.length && isSystemItem(items[count])) count++; return count; };
+    aligned[key] = [...theirs.slice(0, lead(theirs)), ...ours.slice(lead(ours))];
+  }
+  return aligned;
+}
+
+/** Enough conversation for a first recap, and enough new conversation since the last one. */
+export function eligible(branch: readonly BranchEntry[]): boolean {
+  let users = 0;
+  let sinceRecap = -1;
+  for (const entry of branch) {
+    if (entry.type === "custom" && entry.customType === RECAP_TYPE) sinceRecap = 0;
+    else if (entry.type === "message" && entry.message?.role === "user") {
+      users++;
+      if (sinceRecap >= 0) sinceRecap++;
+    }
+  }
+  return users >= MIN_USER_TURNS && (sinceRecap < 0 || sinceRecap >= TURNS_BETWEEN);
+}
+
+export function clipRecap(text: string): string {
+  const trimmed = text.trim();
+  return trimmed.length <= MAX_CHARS ? trimmed : `${trimmed.slice(0, MAX_CHARS - 1).trimEnd()}…`;
+}
+
+/** Same model, system prompt, tools and session as the conversation, so the request can reuse its prompt cache. */
+export async function generateRecap(pi: ExtensionAPI, ctx: ExtensionContext, signal: AbortSignal, lastRequest?: unknown): Promise<RecapData> {
+  const model = ctx.model;
+  if (!model) throw new Error("当前没有选定模型");
+  const active = new Set(pi.getActiveTools());
+  const tools = pi.getAllTools().filter((tool) => active.has(tool.name))
+    .map(({ name, description, parameters }) => ({ name, description, parameters }));
+  // Pi records system prompt changes as messages; they are not part of what it sends.
+  const messages = convertToLlm(ctx.sessionManager.buildSessionProjection().messages.filter((message) => message.role !== "system"));
+  messages.push({ role: "user", content: [{ type: "text", text: RECAP_PROMPT }], timestamp: Date.now() });
+  const response = await ctx.modelRegistry.streamSimple(model, { systemPrompt: ctx.getSystemPrompt(), messages, tools },
+    { reasoning: model.reasoning ? "low" : undefined, toolChoice: "none", sessionId: ctx.sessionManager.getSessionId(), signal,
+      onPayload: (payload) => alignPrefix(payload, lastRequest) }).result();
+  if (response.stopReason === "error" || response.stopReason === "aborted") {
+    throw new Error(response.errorMessage || response.stopReason);
+  }
+  const text = clipRecap(response.content.flatMap((part) => (part.type === "text" ? [part.text] : [])).join(""));
+  if (!text) throw new Error("模型没有返回内容");
+  const { usage } = response;
+  return { text, model: `${response.provider}/${response.model}`, at: new Date().toISOString(),
+    usage: { input: usage.input, cacheRead: usage.cacheRead, output: usage.output, cost: usage.cost.total } };
+}
+
+export default function recap(pi: ExtensionAPI): void {
+  let running: AbortController | undefined;
+  let lastRequest: unknown;
+
+  const cancel = () => {
+    running?.abort();
+    running = undefined;
+  };
+
+  const write = async (ctx: ExtensionContext, manual: boolean) => {
+    const controller = new AbortController();
+    running = controller;
+    try {
+      const data = await generateRecap(pi, ctx, controller.signal, lastRequest);
+      // Input or a new run during generation makes the recap stale.
+      if (!controller.signal.aborted) pi.appendEntry<RecapData>(RECAP_TYPE, data);
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      if (manual) ctx.ui.notify(`recap 生成失败：${error instanceof Error ? error.message : String(error)}`, "warning");
+    } finally {
+      if (running === controller) running = undefined;
+    }
+  };
+
+  pi.registerEntryRenderer<RecapData>(RECAP_TYPE, (entry, _options, theme) => {
+    const text = entry.data?.text;
+    return text ? new Text(`${theme.fg("dim", theme.bold("※ recap:"))} ${theme.fg("dim", theme.italic(text))}`, 1, 0) : undefined;
+  });
+
+  pi.on("session_start", () => { cancel(); lastRequest = undefined; });
+  pi.on("before_provider_request", (event) => { lastRequest = event.payload; });
+  pi.on("session_shutdown", cancel);
+  // A new message or run makes an unfinished recap stale.
+  pi.on("agent_start", cancel);
+  pi.on("input", () => { cancel(); });
+
+  pi.on("agent_settled", (_event, ctx) => {
+    cancel();
+    // Print, JSON and RPC runs have nobody to read a recap.
+    if (ctx.mode !== "tui" || !ctx.model || EXCLUDED_MODELS.includes(`${ctx.model.provider}/${ctx.model.id}`)) return;
+    if (ctx.hasPendingMessages() || ctx.ui.getEditorText().trim() || !eligible(ctx.sessionManager.getBranch())) return;
+    void write(ctx, false);
+  });
+
+  pi.registerCommand("recap", {
+    description: "现在生成一句会话回顾",
+    handler: async (_args, ctx) => {
+      cancel();
+      if (!ctx.sessionManager.getBranch().some((entry) => entry.type === "message" && entry.message.role === "user")) {
+        ctx.ui.notify("还没有可以回顾的对话", "info");
+        return;
+      }
+      await write(ctx, true);
+    },
+  });
+}
