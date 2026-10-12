@@ -93,7 +93,8 @@ test("no automatic recap for short sessions, drafts, excluded models, or non-int
   await wait(10);
   for (const h of cases) assert.deepEqual([h.requests.length, h.entries.length], [0, 0]);
   await excluded.commands.recap.handler("", excluded.ctx);
-  assert.equal(excluded.entries.length, 1, "an explicit /recap still runs on an excluded model");
+  assert.deepEqual([excluded.requests.length, excluded.entries.length, excluded.notices[0][1]], [0, 0, "info"]);
+  assert.match(excluded.notices[0][0], /openai\/gpt-6-astra/);
 });
 
 test("input during generation drops the stale recap", async () => {
