@@ -2,8 +2,9 @@
  * Session recap, after Claude Code's: when a run finishes, the current model
  * writes one or two sentences on the goal, the current task and the next
  * action. The recap is a custom session entry: shown in the chat, never sent
- * to the model. /recap writes one now. Claude Code waits until the terminal
- * has lost focus for a few minutes; this recaps as soon as the reply ends.
+ * to the model. Claude Code waits until the terminal has lost focus for a few
+ * minutes and also offers /recap; this recaps as soon as the reply ends and
+ * has no command.
  */
 import { convertToLlm, type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Text } from "@earendil-works/pi-tui";
@@ -14,9 +15,8 @@ export const RECAP_PROMPT = "The user stepped away and is coming back. Recap in 
   + "Skip root-cause narrative, fix internals, secondary to-dos, and em-dash tangents. "
   + "Write in the language of the user's messages: if they write Chinese, answer in Chinese, under 80 characters.";
 export const RECAP_TYPE = "recap";
-/** Expensive models never recap, not even on /recap. */
+/** Expensive models never recap. */
 export const EXCLUDED_MODELS: readonly string[] = ["openai/gpt-6-astra"];
-const excluded = (model: ExtensionContext["model"]) => !!model && EXCLUDED_MODELS.includes(`${model.provider}/${model.id}`);
 const MAX_CHARS = 400;
 /** Claude Code's defaults: 3 user turns before the first recap, 2 between recaps. */
 const MIN_USER_TURNS = 3;
@@ -108,16 +108,15 @@ export default function recap(pi: ExtensionAPI): void {
     running = undefined;
   };
 
-  const write = async (ctx: ExtensionContext, manual: boolean) => {
+  const write = async (ctx: ExtensionContext) => {
     const controller = new AbortController();
     running = controller;
     try {
       const data = await generateRecap(pi, ctx, controller.signal, lastRequest);
       // Input or a new run during generation makes the recap stale.
       if (!controller.signal.aborted) pi.appendEntry<RecapData>(RECAP_TYPE, data);
-    } catch (error) {
-      if (controller.signal.aborted) return;
-      if (manual) ctx.ui.notify(`recap 生成失败：${error instanceof Error ? error.message : String(error)}`, "warning");
+    } catch {
+      // A missing recap is not worth interrupting the user; the next eligible reply tries again.
     } finally {
       if (running === controller) running = undefined;
     }
@@ -138,24 +137,8 @@ export default function recap(pi: ExtensionAPI): void {
   pi.on("agent_settled", (_event, ctx) => {
     cancel();
     // Print, JSON and RPC runs have nobody to read a recap.
-    if (ctx.mode !== "tui" || !ctx.model || excluded(ctx.model)) return;
+    if (ctx.mode !== "tui" || !ctx.model || EXCLUDED_MODELS.includes(`${ctx.model.provider}/${ctx.model.id}`)) return;
     if (ctx.hasPendingMessages() || ctx.ui.getEditorText().trim() || !eligible(ctx.sessionManager.getBranch())) return;
-    void write(ctx, false);
-  });
-
-  pi.registerCommand("recap", {
-    description: "现在生成一句会话回顾",
-    handler: async (_args, ctx) => {
-      cancel();
-      if (excluded(ctx.model)) {
-        ctx.ui.notify(`${ctx.model!.provider}/${ctx.model!.id} 在 recap 黑名单里，不生成回顾`, "info");
-        return;
-      }
-      if (!ctx.sessionManager.getBranch().some((entry) => entry.type === "message" && entry.message.role === "user")) {
-        ctx.ui.notify("还没有可以回顾的对话", "info");
-        return;
-      }
-      await write(ctx, true);
-    },
+    void write(ctx);
   });
 }

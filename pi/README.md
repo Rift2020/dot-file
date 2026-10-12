@@ -11,13 +11,13 @@
 | `AGENTS.md` | 中文协作、简单任务直接执行、复杂任务先讨论、尊重只读要求、难以撤销的操作先确认、证据与交付约定 |
 | `extensions/base-prompt.ts` | 全局扩展：替换 Pi 默认系统提示的身份句，去掉固定的“Be concise”，并告诉每个会话当天日期 |
 | `extensions/prompt-export.ts` | 全局扩展：`/export-prompt` 导出最近一次实际发给模型的系统提示、工具定义和请求原文 |
-| `extensions/recap.ts` | 全局扩展：仿 Claude Code，每次回复结束后在对话里补一行 `※ recap:`，一两句话说明目标、当前任务和下一步；`/recap` 手动生成 |
+| `extensions/recap.ts` | 全局扩展：仿 Claude Code，每次回复结束后在对话里补一行 `※ recap:`，一两句话说明目标、当前任务和下一步 |
 | `link.sh` | 部署入口：合并设置与搜索配置，链接协作约定和扩展 |
 | `apply-settings.mjs` | 将仓库偏好合并到本机可写的 `settings.json` 与 `web-search.json`，保留本机状态 |
 | `test-link.mjs` | 部署、重复执行、迁移、冲突与异常处理测试 |
 | `test-base-prompt.mjs` | 系统提示改写与日期的测试 |
 | `test-prompt-export.mjs` | 各服务商请求格式的提取与导出测试 |
-| `test-recap.mjs` | recap 的触发条件、请求内容、黑名单与手动命令测试 |
+| `test-recap.mjs` | recap 的触发条件、请求内容、缓存前缀、黑名单与失败处理测试 |
 | `.gitignore` | 使用显式白名单，避免凭据、会话、缓存和运行状态误入 Git |
 
 `settings.json` 中由本方案设置的四项基础设置：
@@ -60,7 +60,7 @@ Pi 默认系统提示的开头是 “You are an expert coding assistant…”，
 - **触发条件**沿用 Claude Code：会话里至少有 3 轮用户消息，上一次回顾之后至少又有 2 轮；输入框里有草稿、还有排队的消息时跳过。生成途中发出新消息或开始新一轮，这次回顾作废。只在交互界面生成，`--print`、JSON 和 RPC 模式不生成。
 - **生成方式**照 Claude Code 的做法：用当前会话的模型和完整对话，末尾追加 Claude Code 的回顾指令（另加一句：用户写中文就用中文，不超过 80 字）；thinking 用 low，禁止调用工具，超过 400 字符截断。请求沿用主对话最近一次实际请求的系统提示和工具列表（Pi 自己只知道 base-prompt 改写前的提示），并去掉会话里记录系统提示变化的条目，前缀与主对话一致，能命中提示缓存。实测一个 3.5k token 的会话，每次回顾只有约 300 token 未命中缓存。
 - **显示与保存**：回顾作为自定义条目存进会话记录，翻历史还能看到，但不会发给模型；learn 的整理也会跳过它。条目里另存了模型和用量（输入、缓存命中、输出、花费）。
-- **模型黑名单**：`recap.ts` 里的 `EXCLUDED_MODELS`，目前是 `openai/gpt-6-astra`；名单里的模型既不自动回顾，也不响应手动 `/recap`。
+- **模型黑名单**：`recap.ts` 里的 `EXCLUDED_MODELS`，目前是 `openai/gpt-6-astra`；名单里的模型不生成回顾。
 
 ## 插件
 

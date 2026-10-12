@@ -92,9 +92,6 @@ test("no automatic recap for short sessions, drafts, excluded models, or non-int
   }
   await wait(10);
   for (const h of cases) assert.deepEqual([h.requests.length, h.entries.length], [0, 0]);
-  await excluded.commands.recap.handler("", excluded.ctx);
-  assert.deepEqual([excluded.requests.length, excluded.entries.length, excluded.notices[0][1]], [0, 0, "info"]);
-  assert.match(excluded.notices[0][0], /openai\/gpt-6-astra/);
 });
 
 test("input during generation drops the stale recap", async () => {
@@ -114,19 +111,13 @@ test("input during generation drops the stale recap", async () => {
   assert.equal(h.entries.length, 0);
 });
 
-test("/recap works at any length and reports failures", async () => {
-  const ok = harness({ branch: [user("只问了一句")] });
-  ok.handlers.session_start({}, ok.ctx);
-  await ok.commands.recap.handler("", ok.ctx);
-  assert.equal(ok.entries.length, 1);
+test("there is no /recap command, and a failed recap writes nothing and says nothing", async () => {
   const failed = harness({ reply: { stopReason: "error", errorMessage: "rate limited", content: [], usage: {} } });
+  assert.deepEqual(Object.keys(failed.commands), []);
   failed.handlers.session_start({}, failed.ctx);
-  await failed.commands.recap.handler("", failed.ctx);
-  assert.deepEqual([failed.entries.length, failed.notices[0][1]], [0, "warning"]);
-  assert.match(failed.notices[0][0], /rate limited/);
-  const empty = harness({ branch: [] });
-  await empty.commands.recap.handler("", empty.ctx);
-  assert.deepEqual([empty.requests.length, empty.notices[0][1]], [0, "info"]);
+  failed.handlers.agent_settled({ aborted: false }, failed.ctx);
+  await wait(10);
+  assert.deepEqual([failed.requests.length, failed.entries.length, failed.notices.length], [1, 0, 0]);
 });
 
 test("the recap request takes the system prompt and tools of the conversation's last request", () => {
