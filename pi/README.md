@@ -80,11 +80,11 @@ Pi 默认系统提示的开头是 “You are an expert coding assistant…”，
 
 1. GPT-6.1 Sol：`openai/gpt-6.1-sol:high`（默认模型）
 2. GPT-6 Astra：`openai/gpt-6-astra:xhigh`
-3. DeepSeek V4.1 Flash：`deepseek/deepseek-flash:high`
+3. Gemini 3.8 Flash：`google-vertex/gemini-3.8-flash:medium`（需要 Vertex AI 认证）
 
 在 Pi 输入界面按 `Ctrl+P` 切到下一项，按 `Ctrl+Shift+P` 切到上一项；每次轮换同时应用该项指定的 effort。可用 `/thinking` 或 `Shift+Tab` 临时调整，下一次轮换回该模型时仍采用列表中的强度。
 
-默认启动使用 `defaultProvider: "openai"`、`defaultModel: "gpt-6.1-sol"`、`defaultThinkingLevel: "high"`。`modelThinkingLevels` 同时声明三个模型各自的默认 effort（Sol 为 `high`、Astra 为 `xhigh`、DeepSeek 为 `high`），通过 `/model` 切换时也会应用；快捷轮换以 `enabledModels` 中的显式强度为准。实际启动仍受可用认证与命令行覆盖规则影响；继续历史会话会恢复原会话的模型和 effort。修改仓库中的设置后运行 `link.sh`，重新启动 Pi 使默认值与轮换列表生效。
+默认启动使用 `defaultProvider: "openai"`、`defaultModel: "gpt-6.1-sol"`、`defaultThinkingLevel: "high"`。`modelThinkingLevels` 同时声明三个模型各自的默认 effort（Sol 为 `high`、Astra 为 `xhigh`、Gemini 为 `medium`），通过 `/model` 切换时也会应用；快捷轮换以 `enabledModels` 中的显式强度为准。实际启动仍受可用认证与命令行覆盖规则影响；继续历史会话会恢复原会话的模型和 effort。修改仓库中的设置后运行 `link.sh`，重新启动 Pi 使默认值与轮换列表生效。
 
 这里只限制快捷轮换范围，仍可用 `/model` 选择其他已接入模型。不需要预设扩展、提示词模板或 Skill。
 
