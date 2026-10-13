@@ -12,12 +12,14 @@
 | `extensions/base-prompt.ts` | 全局扩展：替换 Pi 默认系统提示的身份句，去掉固定的“Be concise”，并告诉每个会话当天日期 |
 | `extensions/prompt-export.ts` | 全局扩展：`/export-prompt` 导出最近一次实际发给模型的系统提示、工具定义和请求原文 |
 | `extensions/recap.ts` | 全局扩展：仿 Claude Code，每次回复结束后在对话里补一行 `※ recap:`，一两句话说明目标、当前任务和下一步 |
+| `extensions/paste-image.ts` | 全局扩展：SSH 连到 kitty 时，`Ctrl+V` 经 kitty 读取本地剪贴板里的图片 |
 | `link.sh` | 部署入口：合并设置与搜索配置，链接协作约定和扩展 |
 | `apply-settings.mjs` | 将仓库偏好合并到本机可写的 `settings.json` 与 `web-search.json`，保留本机状态 |
 | `test-link.mjs` | 部署、重复执行、迁移、冲突与异常处理测试 |
 | `test-base-prompt.mjs` | 系统提示改写与日期的测试 |
 | `test-prompt-export.mjs` | 各服务商请求格式的提取与导出测试 |
 | `test-recap.mjs` | recap 的触发条件、请求内容、缓存前缀、黑名单与失败处理测试 |
+| `test-paste-image.mjs` | 图片粘贴的启用条件、kitten 调用、授权密码传递与失败处理测试 |
 | `.gitignore` | 使用显式白名单，避免凭据、会话、缓存和运行状态误入 Git |
 
 `settings.json` 中由本方案设置的四项基础设置：
@@ -61,6 +63,14 @@ Pi 默认系统提示的开头是 “You are an expert coding assistant…”，
 - **生成方式**照 Claude Code 的做法：用当前会话的模型和完整对话，末尾追加 Claude Code 的回顾指令（另加一句：用户写中文就用中文，不超过 80 字）；thinking 用 low，禁止调用工具，超过 400 字符截断。请求沿用主对话最近一次实际请求的系统提示和工具列表（Pi 自己只知道 base-prompt 改写前的提示），并去掉会话里记录系统提示变化的条目，前缀与主对话一致，能命中提示缓存。实测一个 3.5k token 的会话，每次回顾只有约 300 token 未命中缓存。
 - **显示与保存**：回顾作为自定义条目存进会话记录，翻历史还能看到，但不会发给模型；learn 的整理也会跳过它。条目里另存了模型和用量（输入、缓存命中、输出、花费）。
 - **模型黑名单**：`recap.ts` 里的 `EXCLUDED_MODELS`，目前是 `openai/gpt-6-astra`；名单里的模型不生成回顾。
+
+### 粘贴图片
+
+Pi 自带的 `Ctrl+V` 会把剪贴板里的图片存成临时文件，再把路径插进输入框，由模型用 `read` 打开。它读的是运行 Pi 那台机器的剪贴板；通过 SSH 使用时远端没有图形界面，读不到本地截图。`extensions/paste-image.ts` 在这种情况下接管 `Ctrl+V`：
+
+- **启用条件**：SSH 会话、终端是 kitty、不在 tmux 里（tmux 会拦下 kitty 的剪贴板请求），且 `PATH` 里有 `kitten`。用 `kitten ssh` 登录时 kitty 会在远端装好 `kitten`。条件不满足时不接管，`Ctrl+V` 仍是 Pi 自带的行为。只在交互界面生效。
+- **做法**：仿 Pi 示例 `interactive-shell.ts`，先暂停界面、把终端交给 `kitten clipboard --get-clipboard`，由它经 kitty 读取本地剪贴板里的图片并转成 PNG；读完恢复界面。图片和 Pi 自带粘贴一样存成 `/tmp/pi-clipboard-<uuid>.png`，路径插进输入框。剪贴板里没有图片时只提示，文字仍用 kitty 的 `Ctrl+Shift+V` 粘贴。
+- **授权**：kitty 默认在程序读取剪贴板前弹窗询问。扩展每个 Pi 进程生成一个随机密码，通过文件描述符交给 kitten，不出现在命令行参数里。kitty 弹窗时选择记住这个密码，同一个 Pi 进程之后的粘贴就不再询问；`/reload` 或重启 Pi 后会再问一次。弹窗两分钟没有回应则放弃这次粘贴。
 
 ## 插件
 
@@ -130,7 +140,7 @@ pi install npm:pi-docparser@4.0.0
 
 ```sh
 sh -n ~/.config/pi/link.sh
-node --test ~/.config/pi/test-link.mjs ~/.config/pi/test-base-prompt.mjs ~/.config/pi/test-prompt-export.mjs ~/.config/pi/test-recap.mjs
+node --test ~/.config/pi/test-link.mjs ~/.config/pi/test-base-prompt.mjs ~/.config/pi/test-prompt-export.mjs ~/.config/pi/test-recap.mjs ~/.config/pi/test-paste-image.mjs
 ```
 
 测试使用临时目录，不接触本机认证、会话或实际配置。

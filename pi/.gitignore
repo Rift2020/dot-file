@@ -10,7 +10,9 @@
 !test-base-prompt.mjs
 !test-prompt-export.mjs
 !test-recap.mjs
+!test-paste-image.mjs
 !extensions/
 !extensions/base-prompt.ts
 !extensions/prompt-export.ts
 !extensions/recap.ts
+!extensions/paste-image.ts
