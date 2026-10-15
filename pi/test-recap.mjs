@@ -15,7 +15,7 @@ const parentURL = ${JSON.stringify(pathToFileURL(join(release, "resolve.js")).hr
 export function resolve(specifier, context, next) {
   return next(specifier, specifier.startsWith("@earendil-works/") ? { ...context, parentURL } : context);
 }`)}`);
-const { default: recap, alignPrefix, clipRecap, eligible, RECAP_PROMPT, statePath } = await import("./extensions/recap.ts");
+const { default: recap, alignPrefix, clipRecap, eligible, recapReasoning, RECAP_PROMPT, statePath } = await import("./extensions/recap.ts");
 // The on/off switch lives in the agent directory; keep the real one untouched.
 const agentDir = mkdtempSync(join(tmpdir(), "recap-agent-"));
 process.env.PI_CODING_AGENT_DIR = agentDir;
@@ -37,7 +37,7 @@ test("a first recap needs three user turns, later ones two more", () => {
   assert.equal(clipRecap(" 短句。 "), "短句。");
 });
 
-function harness({ mode = "tui", branch = [user("修好登录"), assistant("好"), user("再看日志"), assistant("看了"), user("继续")], reply, editor = "" } = {}) {
+function harness({ mode = "tui", branch = [user("修好登录"), assistant("好"), user("再看日志"), assistant("看了"), user("继续")], reply, editor = "", thinking = "high" } = {}) {
   const handlers = {}, commands = {}, entries = [], notices = [], requests = [];
   let renderer;
   const pi = {
@@ -45,6 +45,7 @@ function harness({ mode = "tui", branch = [user("修好登录"), assistant("好"
     registerCommand: (name, options) => { commands[name] = options; },
     registerEntryRenderer: (_type, render) => { renderer = render; },
     appendEntry: (customType, data) => entries.push({ customType, data }),
+    getThinkingLevel: () => thinking,
     getActiveTools: () => ["read", "bash"],
     getAllTools: () => [{ name: "read", description: "Read", parameters: { type: "object" }, exposure: "default" },
       { name: "bash", description: "Run", parameters: { type: "object" } }, { name: "hidden", description: "Off", parameters: {} }],
@@ -77,13 +78,28 @@ test("when a reply ends the session model recaps with the conversation's prompt,
   assert.deepEqual(Object.keys(context.tools[0]), ["name", "description", "parameters"]);
   assert.equal(context.messages.length, 6);
   assert.equal(context.messages.at(-1).content[0].text, RECAP_PROMPT);
-  assert.deepEqual([options.reasoning, options.toolChoice, options.sessionId], ["low", "none", "session-1"]);
+  assert.deepEqual([options.reasoning, options.toolChoice, options.sessionId], ["high", "none", "session-1"]);
   assert.equal(h.entries.length, 1);
   assert.equal(h.entries[0].customType, "recap");
   assert.deepEqual({ ...h.entries[0].data, at: undefined }, { text: "在修登录；下一步看日志。", model: "openai/m", at: undefined,
     usage: { input: 10, cacheRead: 900, output: 20, cost: 0.01 } });
   const lines = h.render({ data: h.entries[0].data }, { expanded: false }, { fg: (_color, text) => text, bold: (text) => text, italic: (text) => text }).render(80);
   assert.match(lines.join("\n"), /※ recap: 在修登录；下一步看日志。/);
+});
+
+test("recaps think at the conversation's level up to high, and at low above it", async () => {
+  assert.deepEqual(["off", "minimal", "low", "medium", "high", "xhigh", "max"].map(recapReasoning),
+    [undefined, "minimal", "low", "medium", "high", "low", "low"]);
+  const xhigh = harness({ thinking: "xhigh" });
+  const off = harness({ thinking: "off" });
+  const plain = harness();
+  plain.ctx.model = { provider: "openai", id: "m", reasoning: false };
+  for (const h of [xhigh, off, plain]) {
+    h.handlers.session_start({}, h.ctx);
+    h.handlers.agent_settled({ aborted: false }, h.ctx);
+  }
+  await wait(10);
+  assert.deepEqual([xhigh, off, plain].map((h) => h.requests[0].options.reasoning), ["low", undefined, undefined]);
 });
 
 test("no automatic recap for short sessions, drafts, excluded models, or non-interactive runs", async () => {

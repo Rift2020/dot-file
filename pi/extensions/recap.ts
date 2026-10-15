@@ -95,6 +95,16 @@ export function writeEnabled(enabled: boolean, path = statePath()): void {
   renameSync(temporary, path);
 }
 
+/**
+ * OpenAI caches prompts per reasoning effort, so a recap at the conversation's
+ * effort reuses its cache (about a tenth of the cost). Above high it would think
+ * for 11–15 s instead of 4–6 s, so those recaps use low and pay full price.
+ */
+export function recapReasoning(level: string): "minimal" | "low" | "medium" | "high" | undefined {
+  if (level === "off") return undefined;
+  return level === "minimal" || level === "low" || level === "medium" || level === "high" ? level : "low";
+}
+
 const excluded = (model: ExtensionContext["model"]) => !!model && EXCLUDED_MODELS.includes(`${model.provider}/${model.id}`);
 
 export function clipRecap(text: string): string {
@@ -113,7 +123,7 @@ export async function generateRecap(pi: ExtensionAPI, ctx: ExtensionContext, sig
   const messages = convertToLlm(ctx.sessionManager.buildSessionProjection().messages.filter((message) => message.role !== "system"));
   messages.push({ role: "user", content: [{ type: "text", text: RECAP_PROMPT }], timestamp: Date.now() });
   const response = await ctx.modelRegistry.streamSimple(model, { systemPrompt: ctx.getSystemPrompt(), messages, tools },
-    { reasoning: model.reasoning ? "low" : undefined, toolChoice: "none", sessionId: ctx.sessionManager.getSessionId(), signal,
+    { reasoning: model.reasoning ? recapReasoning(pi.getThinkingLevel()) : undefined, toolChoice: "none", sessionId: ctx.sessionManager.getSessionId(), signal,
       onPayload: (payload) => alignPrefix(payload, lastRequest) }).result();
   if (response.stopReason === "error" || response.stopReason === "aborted") {
     throw new Error(response.errorMessage || response.stopReason);
