@@ -11,7 +11,7 @@
 | `AGENTS.md` | 中文协作、简单任务直接执行、复杂任务先讨论、尊重只读要求、难以撤销的操作先确认、证据与交付约定 |
 | `extensions/base-prompt.ts` | 全局扩展：替换 Pi 默认系统提示的身份句，去掉固定的“Be concise”，并告诉每个会话当天日期 |
 | `extensions/prompt-export.ts` | 全局扩展：`/export-prompt` 导出最近一次实际发给模型的系统提示、工具定义和请求原文 |
-| `extensions/recap.ts` | 全局扩展：仿 Claude Code，每次回复结束后在对话里补一行 `※ recap:`，一两句话说明目标、当前任务和下一步 |
+| `extensions/recap.ts` | 全局扩展：仿 Claude Code，每次回复结束后在对话里补一行 `※ recap:`，一两句话说明目标、当前任务和下一步；`/recap` 开关 |
 | `extensions/background-service-tier.ts` | 全局扩展：非交互 OpenAI 请求固定 Standard，保留手动会话保存的 Fast 开关 |
 | `extensions/gemini4-thinking.ts` | 临时全局扩展：Pi 原生支持 Gemini 4 前，把发给 Gemini 4 的思考预算改成它接受的思考档位 |
 | `extensions/paste-image.ts` | 全局扩展：SSH 连到 kitty 时，`Ctrl+V` 经 kitty 读取本地剪贴板里的图片 |
@@ -20,7 +20,7 @@
 | `test-link.mjs` | 部署、重复执行、迁移、冲突与异常处理测试 |
 | `test-base-prompt.mjs` | 系统提示改写与日期的测试 |
 | `test-prompt-export.mjs` | 各服务商请求格式的提取与导出测试 |
-| `test-recap.mjs` | recap 的触发条件、请求内容、缓存前缀、黑名单与失败处理测试 |
+| `test-recap.mjs` | recap 的触发条件、请求内容、缓存前缀、开关、黑名单与失败处理测试 |
 | `test-background-service-tier.mjs` | 验证交互保留 Fast、后台固定 Standard，以及两个扩展的加载顺序 |
 | `test-gemini4-thinking.mjs` | Gemini 4 思考档位改写及其他请求不受影响的测试 |
 | `test-paste-image.mjs` | 图片粘贴的启用条件、kitten 调用、授权密码传递与失败处理测试 |
@@ -64,9 +64,10 @@ Pi 默认系统提示的开头是 “You are an expert coding assistant…”，
 仿 Claude Code 的 session recap。Claude Code 在终端失焦几分钟后才生成；这里不检测失焦，每次回复结束就生成，显示为对话里一行灰色的 `※ recap: …`。
 
 - **触发条件**沿用 Claude Code：会话里至少有 3 轮用户消息，上一次回顾之后至少又有 2 轮；输入框里有草稿、还有排队的消息时跳过。生成途中发出新消息或开始新一轮，这次回顾作废。只在交互界面生成，`--print`、JSON 和 RPC 模式不生成。
-- **生成方式**照 Claude Code 的做法：用当前会话的模型和完整对话，末尾追加 Claude Code 的回顾指令（另加一句：用户写中文就用中文，不超过 80 字）；thinking 用 low，禁止调用工具，超过 400 字符截断。请求沿用主对话最近一次实际请求的系统提示和工具列表（Pi 自己只知道 base-prompt 改写前的提示），并去掉会话里记录系统提示变化的条目，前缀与主对话一致，能命中提示缓存。实测一个 3.5k token 的会话，每次回顾只有约 300 token 未命中缓存。
+- **生成方式**照 Claude Code 的做法：用当前会话的模型和完整对话，末尾追加 Claude Code 的回顾指令（另加一句：用户写中文就用中文，不超过 80 字）；thinking 用 low，禁止调用工具，超过 400 字符截断。请求沿用主对话最近一次实际请求的系统提示和工具列表（Pi 自己只知道 base-prompt 改写前的提示），并去掉会话里记录系统提示变化的条目，前缀与主对话一致。OpenAI 的提示缓存按推理档位区分，所以只有会话本身也是 low 时才能复用主对话的缓存；high、xhigh 会话的第一次回顾整段按原价计，之后的回顾复用上一次回顾的缓存（2026-10-15 实测，约 3 万 token 的会话每次约 $0.06）。
 - **显示与保存**：回顾作为自定义条目存进会话记录，翻历史还能看到，但不会发给模型；learn 的整理也会跳过它。条目里另存了模型和用量（输入、缓存命中、输出、花费）。
-- **模型黑名单**：`recap.ts` 里的 `EXCLUDED_MODELS`，目前是 `openai/gpt-6-astra`；名单里的模型不生成回顾。
+- **开关**：`/recap off`、`/recap on` 或 `/recap`（切换），所有模型共用；`/recap status` 查看。状态存在 `~/.pi/agent/extensions/recap.json`，留在本机、不提交 Git，新会话、`/reload` 和重启沿用；没有这个文件时为开启。
+- **模型黑名单**：`recap.ts` 里的 `EXCLUDED_MODELS`，目前是 `openai/gpt-6-astra`；名单里的模型无论开关如何都不生成回顾。
 
 ### 粘贴图片
 

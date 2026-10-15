@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { register } from "node:module";
-import { homedir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { pathToFileURL } from "node:url";
@@ -15,7 +15,11 @@ const parentURL = ${JSON.stringify(pathToFileURL(join(release, "resolve.js")).hr
 export function resolve(specifier, context, next) {
   return next(specifier, specifier.startsWith("@earendil-works/") ? { ...context, parentURL } : context);
 }`)}`);
-const { default: recap, alignPrefix, clipRecap, eligible, RECAP_PROMPT } = await import("./extensions/recap.ts");
+const { default: recap, alignPrefix, clipRecap, eligible, RECAP_PROMPT, statePath } = await import("./extensions/recap.ts");
+// The on/off switch lives in the agent directory; keep the real one untouched.
+const agentDir = mkdtempSync(join(tmpdir(), "recap-agent-"));
+process.env.PI_CODING_AGENT_DIR = agentDir;
+test.after(() => rmSync(agentDir, { recursive: true, force: true }));
 
 const user = (text) => ({ type: "message", message: { role: "user", content: [{ type: "text", text }], timestamp: 1 } });
 const assistant = (text) => ({ type: "message", message: { role: "assistant", content: [{ type: "text", text }], api: "openai-responses",
@@ -111,9 +115,8 @@ test("input during generation drops the stale recap", async () => {
   assert.equal(h.entries.length, 0);
 });
 
-test("there is no /recap command, and a failed recap writes nothing and says nothing", async () => {
+test("a failed recap writes nothing and says nothing", async () => {
   const failed = harness({ reply: { stopReason: "error", errorMessage: "rate limited", content: [], usage: {} } });
-  assert.deepEqual(Object.keys(failed.commands), []);
   failed.handlers.session_start({}, failed.ctx);
   failed.handlers.agent_settled({ aborted: false }, failed.ctx);
   await wait(10);
@@ -144,4 +147,61 @@ test("system prompt checkpoints in the session are not sent with the recap", asy
   await wait(10);
   assert.deepEqual(h.requests[0].context.messages.map((message) => message.role), ["user", "assistant", "user", "assistant", "user", "user"]);
   assert.equal(typeof h.requests[0].options.onPayload, "function");
+});
+
+test("/recap switches recaps for every model and the choice survives a restart", async (t) => {
+  t.after(() => rmSync(statePath(), { force: true }));
+  const first = harness();
+  first.handlers.session_start({}, first.ctx);
+  await first.commands.recap.handler("off", first.ctx);
+  assert.deepEqual(JSON.parse(readFileSync(statePath(), "utf8")), { enabled: false });
+  assert.equal(statSync(statePath()).mode & 0o777, 0o600);
+  first.handlers.agent_settled({ aborted: false }, first.ctx);
+  const restarted = harness();
+  restarted.ctx.model = { provider: "google-vertex", id: "other", reasoning: true };
+  restarted.handlers.session_start({}, restarted.ctx);
+  restarted.handlers.agent_settled({ aborted: false }, restarted.ctx);
+  await wait(10);
+  assert.deepEqual([first.requests.length, restarted.requests.length], [0, 0]);
+  await restarted.commands.recap.handler("", restarted.ctx);
+  restarted.handlers.agent_settled({ aborted: false }, restarted.ctx);
+  await wait(10);
+  assert.equal(restarted.requests.length, 1);
+  assert.deepEqual(restarted.notices.map(([message]) => message), ["recap 已开启。"]);
+  assert.deepEqual(JSON.parse(readFileSync(statePath(), "utf8")), { enabled: true });
+});
+
+test("switching recap off stops one in progress, and the switch follows other processes", async (t) => {
+  t.after(() => rmSync(statePath(), { force: true }));
+  const h = harness();
+  h.ctx.modelRegistry.streamSimple = (model, context, options) => {
+    h.requests.push({ model, context, options });
+    return { result: () => new Promise(() => {}) };
+  };
+  h.handlers.session_start({}, h.ctx);
+  h.handlers.agent_settled({ aborted: false }, h.ctx);
+  writeFileSync(statePath(), JSON.stringify({ enabled: false }));
+  await h.commands.recap.handler("status", h.ctx);
+  assert.equal(h.requests[0].options.signal.aborted, false);
+  await h.commands.recap.handler("on", h.ctx);
+  await h.commands.recap.handler("off", h.ctx);
+  assert.equal(h.requests[0].options.signal.aborted, true);
+  assert.deepEqual(h.notices.map(([message]) => message), ["recap 已关闭。", "recap 已开启。", "recap 已关闭。"]);
+});
+
+test("excluded models never recap even when it is on; a bad argument or state file changes nothing", async (t) => {
+  t.after(() => rmSync(statePath(), { force: true }));
+  writeFileSync(statePath(), "not json");
+  const h = harness();
+  h.ctx.model = { provider: "openai", id: "gpt-6-astra", reasoning: true };
+  h.handlers.session_start({}, h.ctx);
+  await h.commands.recap.handler("status", h.ctx);
+  await h.commands.recap.handler("maybe", h.ctx);
+  h.handlers.agent_settled({ aborted: false }, h.ctx);
+  await wait(10);
+  assert.equal(h.requests.length, 0);
+  assert.deepEqual(h.notices, [["recap 已开启，但当前模型 openai/gpt-6-astra 在排除名单里，不会生成。", "info"],
+    ["用法：/recap [on|off|status]", "warning"]]);
+  assert.equal(readFileSync(statePath(), "utf8"), "not json");
+  assert.deepEqual(h.commands.recap.getArgumentCompletions("o").map((item) => item.value), ["on", "off"]);
 });

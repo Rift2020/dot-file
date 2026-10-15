@@ -3,10 +3,13 @@
  * writes one or two sentences on the goal, the current task and the next
  * action. The recap is a custom session entry: shown in the chat, never sent
  * to the model. Claude Code waits until the terminal has lost focus for a few
- * minutes and also offers /recap; this recaps as soon as the reply ends and
- * has no command.
+ * minutes; this recaps as soon as the reply ends. `/recap [on|off|status]`
+ * switches it for every model and the choice survives restarts; excluded
+ * models never recap.
  */
-import { convertToLlm, type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { convertToLlm, getAgentDir, type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Text } from "@earendil-works/pi-tui";
 
 /** Claude Code's recap prompt, plus a language rule for Chinese sessions. */
@@ -15,8 +18,9 @@ export const RECAP_PROMPT = "The user stepped away and is coming back. Recap in 
   + "Skip root-cause narrative, fix internals, secondary to-dos, and em-dash tangents. "
   + "Write in the language of the user's messages: if they write Chinese, answer in Chinese, under 80 characters.";
 export const RECAP_TYPE = "recap";
-/** Expensive models never recap. */
+/** Expensive models never recap, whatever the switch says. */
 export const EXCLUDED_MODELS: readonly string[] = ["openai/gpt-6-astra"];
+const COMMAND_ARGS = ["on", "off", "status"];
 const MAX_CHARS = 400;
 /** Claude Code's defaults: 3 user turns before the first recap, 2 between recaps. */
 const MIN_USER_TURNS = 3;
@@ -71,6 +75,28 @@ export function eligible(branch: readonly BranchEntry[]): boolean {
   return users >= MIN_USER_TURNS && (sinceRecap < 0 || sinceRecap >= TURNS_BETWEEN);
 }
 
+/** The on/off switch, shared by every model and session. */
+export const statePath = () => join(getAgentDir(), "extensions", "recap.json");
+
+/** A missing or unreadable switch means on, the behaviour before the switch existed. */
+export function readEnabled(path = statePath()): boolean {
+  try {
+    const state: unknown = JSON.parse(readFileSync(path, "utf8"));
+    return !(isObject(state) && state.enabled === false);
+  } catch {
+    return true;
+  }
+}
+
+export function writeEnabled(enabled: boolean, path = statePath()): void {
+  mkdirSync(dirname(path), { recursive: true });
+  const temporary = `${path}.${process.pid}.tmp`;
+  writeFileSync(temporary, `${JSON.stringify({ enabled }, null, 2)}\n`, { mode: 0o600 });
+  renameSync(temporary, path);
+}
+
+const excluded = (model: ExtensionContext["model"]) => !!model && EXCLUDED_MODELS.includes(`${model.provider}/${model.id}`);
+
 export function clipRecap(text: string): string {
   const trimmed = text.trim();
   return trimmed.length <= MAX_CHARS ? trimmed : `${trimmed.slice(0, MAX_CHARS - 1).trimEnd()}…`;
@@ -102,6 +128,7 @@ export async function generateRecap(pi: ExtensionAPI, ctx: ExtensionContext, sig
 export default function recap(pi: ExtensionAPI): void {
   let running: AbortController | undefined;
   let lastRequest: unknown;
+  let enabled = true;
 
   const cancel = () => {
     running?.abort();
@@ -127,7 +154,37 @@ export default function recap(pi: ExtensionAPI): void {
     return text ? new Text(`${theme.fg("dim", theme.bold("※ recap:"))} ${theme.fg("dim", theme.italic(text))}`, 1, 0) : undefined;
   });
 
-  pi.on("session_start", () => { cancel(); lastRequest = undefined; });
+  pi.registerCommand("recap", {
+    description: "开关 recap：所有模型共用，重启后保留；排除名单内的模型始终不生成",
+    getArgumentCompletions: (prefix) => {
+      const matches = COMMAND_ARGS.filter((arg) => arg.startsWith(prefix)).map((arg) => ({ value: arg, label: arg }));
+      return matches.length > 0 ? matches : null;
+    },
+    handler: async (args, ctx) => {
+      const command = args.trim().toLowerCase();
+      if (command !== "" && !COMMAND_ARGS.includes(command)) {
+        ctx.ui.notify("用法：/recap [on|off|status]", "warning");
+        return;
+      }
+      // Another Pi process may have switched it since this one started.
+      enabled = readEnabled();
+      if (command !== "status") {
+        const next = command === "" ? !enabled : command === "on";
+        try {
+          writeEnabled(next);
+        } catch (error) {
+          ctx.ui.notify(`recap 开关保存失败：${error instanceof Error ? error.message : String(error)}`, "error");
+          return;
+        }
+        enabled = next;
+        if (!enabled) cancel();
+      }
+      const model = ctx.model ? `${ctx.model.provider}/${ctx.model.id}` : "";
+      ctx.ui.notify(!enabled ? "recap 已关闭。" : excluded(ctx.model) ? `recap 已开启，但当前模型 ${model} 在排除名单里，不会生成。` : "recap 已开启。", "info");
+    },
+  });
+
+  pi.on("session_start", () => { cancel(); lastRequest = undefined; enabled = readEnabled(); });
   pi.on("before_provider_request", (event) => { lastRequest = event.payload; });
   pi.on("session_shutdown", cancel);
   // A new message or run makes an unfinished recap stale.
@@ -137,7 +194,7 @@ export default function recap(pi: ExtensionAPI): void {
   pi.on("agent_settled", (_event, ctx) => {
     cancel();
     // Print, JSON and RPC runs have nobody to read a recap.
-    if (ctx.mode !== "tui" || !ctx.model || EXCLUDED_MODELS.includes(`${ctx.model.provider}/${ctx.model.id}`)) return;
+    if (!enabled || ctx.mode !== "tui" || !ctx.model || excluded(ctx.model)) return;
     if (ctx.hasPendingMessages() || ctx.ui.getEditorText().trim() || !eligible(ctx.sessionManager.getBranch())) return;
     void write(ctx);
   });
