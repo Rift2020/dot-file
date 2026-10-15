@@ -13,6 +13,7 @@
 | `extensions/prompt-export.ts` | 全局扩展：`/export-prompt` 导出最近一次实际发给模型的系统提示、工具定义和请求原文 |
 | `extensions/recap.ts` | 全局扩展：仿 Claude Code，每次回复结束后在对话里补一行 `※ recap:`，一两句话说明目标、当前任务和下一步 |
 | `extensions/background-service-tier.ts` | 全局扩展：非交互 OpenAI 请求固定 Standard，保留手动会话保存的 Fast 开关 |
+| `extensions/gemini4-thinking.ts` | 临时全局扩展：Pi 原生支持 Gemini 4 前，把发给 Gemini 4 的思考预算改成它接受的思考档位 |
 | `extensions/paste-image.ts` | 全局扩展：SSH 连到 kitty 时，`Ctrl+V` 经 kitty 读取本地剪贴板里的图片 |
 | `link.sh` | 部署入口：合并设置与搜索配置，链接协作约定和扩展 |
 | `apply-settings.mjs` | 将仓库偏好合并到本机可写的 `settings.json` 与 `web-search.json`，保留本机状态 |
@@ -21,6 +22,7 @@
 | `test-prompt-export.mjs` | 各服务商请求格式的提取与导出测试 |
 | `test-recap.mjs` | recap 的触发条件、请求内容、缓存前缀、黑名单与失败处理测试 |
 | `test-background-service-tier.mjs` | 验证交互保留 Fast、后台固定 Standard，以及两个扩展的加载顺序 |
+| `test-gemini4-thinking.mjs` | Gemini 4 思考档位改写及其他请求不受影响的测试 |
 | `test-paste-image.mjs` | 图片粘贴的启用条件、kitten 调用、授权密码传递与失败处理测试 |
 | `.gitignore` | 使用显式白名单，避免凭据、会话、缓存和运行状态误入 Git |
 
@@ -88,6 +90,8 @@ Fast 使用社区 [pi-gpt-fast-extension](https://github.com/dingdinglz/pi-gpt-f
 
 `background-service-tier.ts` 对非 TUI 的 OpenAI 请求（print、JSON、RPC）明确设置 `service_tier: "default"`，包括 learn 的摘要、选材与阅读加工；不会修改 Fast 状态文件。社区插件尊重已有 `service_tier`，因此无论这两个扩展的加载顺序如何，后台都保持普通档位。learn 的 `/org` 不加载全局插件，不读取 Fast 开关；recap 用 runtime 直接调用，也不经过社区插件。Fast 的实际服务档位与用量以 OpenAI 后端为准。
 
+`gemini4-thinking.ts` 是临时补丁。Pi 1.2.0 还不认识 Gemini 4（`gemini-4-argon`），learn 的阅读加工却要用它：本机 `~/.pi/agent/models.json` 手工登记了这个模型（`google-vertex`，思考档位 low/medium/high，价格按每百万 token 输入 $2、输出 $10、缓存读 $0.1），可是 Pi 只对 Gemini 3 发送 `thinkingLevel`，对其他型号发 `thinkingBudget`，Vertex 会以 400 拒绝。扩展在发请求前把 Gemini 4 的 `thinkingBudget` 换成对应的 `thinkingLevel`，其他请求不动。Pi 原生支持 Gemini 4 后，删除这个扩展和 `models.json` 里的条目，再从本仓库的 `link.sh`、白名单和测试中去掉它。
+
 不额外安装搜索 MCP、多代理或长期记忆系统；不创建固定 Chat / Work 工作目录。模型与推理强度按下方轮换列表设置。当前不包含自定义提示词模板或 Skill。
 
 ## 本机使用
@@ -147,7 +151,7 @@ pi install git:github.com/dingdinglz/pi-gpt-fast-extension
 
 ```sh
 sh -n ~/.config/pi/link.sh
-node --test ~/.config/pi/test-link.mjs ~/.config/pi/test-base-prompt.mjs ~/.config/pi/test-prompt-export.mjs ~/.config/pi/test-recap.mjs ~/.config/pi/test-paste-image.mjs
+node --test ~/.config/pi/test-link.mjs ~/.config/pi/test-base-prompt.mjs ~/.config/pi/test-prompt-export.mjs ~/.config/pi/test-recap.mjs ~/.config/pi/test-paste-image.mjs ~/.config/pi/test-background-service-tier.mjs ~/.config/pi/test-gemini4-thinking.mjs
 ```
 
 测试使用临时目录，不接触本机认证、会话或实际配置。
