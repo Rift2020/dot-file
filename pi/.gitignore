@@ -18,5 +18,3 @@
 !extensions/paste-image.ts
 !extensions/background-service-tier.ts
 !test-background-service-tier.mjs
-!extensions/gemini4-thinking.ts
-!test-gemini4-thinking.mjs
