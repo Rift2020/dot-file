@@ -4,5 +4,8 @@
       "198.18.0.0/16"
     ]
   },
-  "toolActivation": "eager"
+  "toolActivation": "eager",
+  "fetchRouting": {
+    "allowRemoteHostedProviders": true
+  }
 }

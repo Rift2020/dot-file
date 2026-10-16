@@ -7,7 +7,7 @@
 | 文件 | 用途 |
 | --- | --- |
 | `settings.json` | 可跨机器同步的偏好：项目信任、界面、上下文压缩、默认模型、轮换与插件列表 |
-| `web-search.json` | pi-web-access 的 Clash fake-IP 地址池兼容设置与联网工具加载方式；不存放密钥 |
+| `web-search.json` | pi-web-access 的 Clash fake-IP 地址池兼容设置、联网工具加载方式和托管抓取兜底；不存放密钥 |
 | `AGENTS.md` | 中文协作、简单任务直接执行、复杂任务先讨论、尊重只读要求、难以撤销的操作先确认、证据与交付约定 |
 | `extensions/base-prompt.ts` | 全局扩展：替换 Pi 默认系统提示的身份句，去掉固定的“Be concise”，并告诉每个会话当天日期 |
 | `extensions/prompt-export.ts` | 全局扩展：`/export-prompt` 导出最近一次实际发给模型的系统提示、工具定义和请求原文 |
@@ -81,7 +81,7 @@ Pi 自带的 `Ctrl+V` 会把剪贴板里的图片存成临时文件，再把路�
 
 已安装状态栏扩展 `@reedchan/statusline`，沿用插件默认的两行布局，显示上下文占用、模型与 effort、缓存命中率、费用及首字延迟 / 输出速度。运行 `/reload` 或重启 Pi 后加载；`Ctrl+Q` 或 `/breakdown` 可切换上下文明细。当前未配置币种转换，费用按插件默认显示美元。
 
-`web-search.json` 设置 `ssrf.allowRanges: ["198.18.0.0/16"]`，适配本机 Clash 的 fake-IP 地址池，避免读取公网网页时被插件按保留地址拦截。`toolActivation: "eager"` 让联网工具从会话第一轮就可用：插件默认的按需启用要先调用 `web_enable`，多一轮模型往返，而且 GPT 会话启用后的那次请求会丢掉全部提示缓存（2026-10-16 统计的 9 次全部如此）；常驻的工具说明约 2.7k token，基本都能命中缓存。其他地址的现有防护保留；其他机器使用前应确认该网段同样由可信代理接管，不使用 fake-IP 时应移除此项。搜索服务密钥使用环境变量等本机凭据来源，不写入这个受 Git 管理的文件。只适用于某台机器的设置（例如本机为避开内存盘 `/tmp` 而设的 `githubClone.clonePath`）直接写在那台机器的 `~/.pi/agent/web-search.json`，部署时保留。
+`web-search.json` 设置 `ssrf.allowRanges: ["198.18.0.0/16"]`，适配本机 Clash 的 fake-IP 地址池，避免读取公网网页时被插件按保留地址拦截。`toolActivation: "eager"` 让联网工具从会话第一轮就可用：插件默认的按需启用要先调用 `web_enable`，多一轮模型往返，而且 GPT 会话启用后的那次请求会丢掉全部提示缓存（2026-10-16 统计的 9 次全部如此）；常驻的工具说明约 2.7k token，基本都能命中缓存。`fetchRouting.allowRemoteHostedProviders: true` 打开托管抓取兜底：本机直接抓取失败（403、提取不完整等）的网页再交给第三方服务抓，正常能抓到的不经过它们。没有配置其他服务的密钥时只会用到免 key 的 Jina Reader；2026-10-16 实测它救回了本机抓取失败的 openai.com、help.openai.com 和 docs.github.com 页面，但不带 key 时 Jina 拒绝匿名访问 reddit。代价是这些失败的网址和抓回的内容会经过 Jina 的服务器。Jina 的 key 若要配置，写在本机的 `~/.pi/agent/web-search.json`（`jinaApiKey`），不进 Git。其他地址的现有防护保留；其他机器使用前应确认该网段同样由可信代理接管，不使用 fake-IP 时应移除此项。搜索服务密钥使用环境变量等本机凭据来源，不写入这个受 Git 管理的文件。只适用于某台机器的设置（例如本机为避开内存盘 `/tmp` 而设的 `githubClone.clonePath`）直接写在那台机器的 `~/.pi/agent/web-search.json`，部署时保留。
 
 已安装文档解析扩展 `pi-docparser`，固定版本 4.0.0（`pi update` 不会移动固定版本），提供 `document_parse`、`document_search`、`document_screenshot`：本地解析 PDF、按短语查页码、把页面渲染成图片；Office 转换需要另装 LibreOffice。
 
