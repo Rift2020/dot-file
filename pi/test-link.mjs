@@ -14,7 +14,8 @@ function fixture(t) {
   const target = join(root, "agent");
   mkdirSync(source);
   mkdirSync(join(source, "extensions"));
-  for (const file of ["link.sh", "apply-settings.mjs", "settings.json", "AGENTS.md", "web-search.json", "extensions/base-prompt.ts", "extensions/prompt-export.ts", "extensions/recap.ts", "extensions/paste-image.ts", "extensions/background-service-tier.ts"]) {
+  mkdirSync(join(source, "patches"));
+  for (const file of ["patches/statusline-today-cost.patch", "link.sh", "apply-settings.mjs", "settings.json", "AGENTS.md", "web-search.json", "extensions/base-prompt.ts", "extensions/prompt-export.ts", "extensions/recap.ts", "extensions/paste-image.ts", "extensions/background-service-tier.ts"]) {
     copyFileSync(join(config, file), join(source, file));
   }
   const settings = join(target, "settings.json");
@@ -51,6 +52,34 @@ test("fresh deployment and repeated application are idempotent", (t) => {
   assert.equal(statSync(f.settings).mtimeMs, before);
   assert.equal(statSync(search).mtimeMs, searchBefore);
   assert.equal(existsSync(`${f.settings}.before-dotfiles.bak`), false);
+});
+
+// The pre-image of every hunk, which the patch applies to with offsets like the real file.
+function unpatchedStatusline() {
+  const patch = readFileSync(join(config, "patches/statusline-today-cost.patch"), "utf8");
+  return patch.split("\n").filter((line) => /^[ -](?!-- )/.test(line)).map((line) => line.slice(1)).join("\n") + "\n";
+}
+
+test("statusline fix is applied once to the installed package and a changed upstream is reported", (t) => {
+  const f = fixture(t);
+  const first = f.run();
+  success(first);
+  assert.match(first.stdout, /Not installed yet/);
+  const file = join(f.target, "npm/node_modules/@reedchan/statusline/extensions/statusline/index.ts");
+  mkdirSync(dirname(file), { recursive: true });
+  writeFileSync(file, unpatchedStatusline());
+  const patched = f.run();
+  success(patched);
+  assert.match(patched.stdout, /Patched:/);
+  assert.match(readFileSync(file, "utf8"), /entry\.message\.usage/);
+  const again = f.run();
+  success(again);
+  assert.match(again.stdout, /Already patched:/);
+  writeFileSync(file, "export {}\n");
+  const changed = f.run();
+  success(changed);
+  assert.match(changed.stderr, /no longer applies/);
+  assert.equal(readFileSync(file, "utf8"), "export {}\n");
 });
 
 test("merge preserves local state and nested settings, replaces shared arrays", (t) => {

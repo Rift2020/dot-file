@@ -12,7 +12,7 @@ command -v node >/dev/null 2>&1 || {
   printf 'Node.js is required to merge Pi settings.\n' >&2
   exit 1
 }
-for pi_config_item in $pi_config_merged $pi_config_linked apply-settings.mjs; do
+for pi_config_item in $pi_config_merged $pi_config_linked apply-settings.mjs patches/statusline-today-cost.patch; do
   if [ ! -f "$pi_config_source/$pi_config_item" ]; then
     printf 'Missing source: %s\n' "$pi_config_source/$pi_config_item" >&2
     exit 1
@@ -54,3 +54,20 @@ for pi_config_item in $pi_config_linked; do
   fi
   printf 'Linked: %s\n' "$pi_config_to"
 done
+
+# Local fix to the pinned statusline package until upstream ships it (see README).
+# Pi installs packages on its own, so run this script again after `pi install`.
+pi_package=$pi_config_target/npm/node_modules/@reedchan/statusline
+pi_patch=$pi_config_source/patches/statusline-today-cost.patch
+if [ ! -d "$pi_package" ]; then
+  printf 'Not installed yet; run link.sh again after pi install: %s\n' "$pi_package"
+elif ! command -v patch >/dev/null 2>&1; then
+  printf 'patch(1) is missing; statusline left unpatched\n' >&2
+elif patch -d "$pi_package" -p1 -R -s -f --dry-run < "$pi_patch" >/dev/null 2>&1; then
+  printf 'Already patched: %s\n' "$pi_package"
+elif patch -d "$pi_package" -p1 -s -f --dry-run < "$pi_patch" >/dev/null 2>&1; then
+  patch -d "$pi_package" -p1 -s -f < "$pi_patch"
+  printf 'Patched: %s\n' "$pi_package"
+else
+  printf 'Patch no longer applies; check whether upstream fixed it: %s\n' "$pi_patch" >&2
+fi

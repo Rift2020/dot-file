@@ -1,0 +1,44 @@
+--- a/extensions/statusline/index.ts
++++ b/extensions/statusline/index.ts
+@@ -192,8 +192,10 @@
+   }
+   if (!isRecord(entry) || typeof entry.timestamp !== 'string') return null
+   if (Date.parse(entry.timestamp) < since) return null
+-  if (!isRecord(entry.usage) || !isRecord(entry.usage.cost)) return null
+-  const total = entry.usage.cost.total
++  // Model replies keep usage on the message; compaction and branch summaries on the entry.
++  const usage = isRecord(entry.message) && isRecord(entry.message.usage) ? entry.message.usage : entry.usage
++  if (!isRecord(usage) || !isRecord(usage.cost)) return null
++  const total = usage.cost.total
+   return typeof total === 'number' && Number.isFinite(total) ? total : null
+ }
+ 
+@@ -204,15 +206,20 @@
+  * cost is already live in totals.cost — counting both would double a resumed session.
+  */
+ async function sumOtherTodaysCost(currentFile: string | null, since: number): Promise<number> {
+-  let dirs: string[] = []
+-  try {
+-    dirs = await readdir(SESSIONS_DIR)
+-  } catch {
+-    return 0
+-  }
++  // An app with its own session directory (e.g. learn) keeps <root>/<group>/<file>.jsonl too.
++  const roots = [...new Set([SESSIONS_DIR, ...(currentFile ? [dirname(dirname(currentFile))] : [])])]
++  const dirs = (
++    await Promise.all(
++      roots.map((root) =>
++        readdir(root).then(
++          (names) => names.map((name) => join(root, name)),
++          () => [],
++        ),
++      ),
++    )
++  ).flat()
+   const lists = await Promise.all(
+-    dirs.map(async (dir) => {
+-      const dirPath = join(SESSIONS_DIR, dir)
++    dirs.map(async (dirPath) => {
+       let names: string[] = []
+       try {
+         names = await readdir(dirPath)
