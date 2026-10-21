@@ -91,7 +91,7 @@ Pi 自带的 `Ctrl+V` 会把剪贴板里的图片存成临时文件，再把路�
 
 Fast 使用社区 [pi-gpt-fast-extension](https://github.com/dingdinglz/pi-gpt-fast-extension)（当前 1.2.0）。`/fast on`、`/fast off` 和 `/fast` 保存最后一次开关；新会话、`/new`、`/resume`、`/reload` 和重启恢复该状态，`/fast status` 查看状态。默认首次关闭，支持当前 `openai/gpt-6.1-sol`；只请求 `service_tier: "priority"`，不改变 thinking、模型、提示或工具。状态文件 `~/.pi/agent/extensions/fast-mode.json` 留在本机，不提交 Git。
 
-`background-service-tier.ts` 对非 TUI 的 OpenAI 请求（print、JSON、RPC）明确设置 `service_tier: "default"`，包括 learn 的摘要、选材与阅读加工；不会修改 Fast 状态文件。社区插件尊重已有 `service_tier`，因此无论这两个扩展的加载顺序如何，后台都保持普通档位。learn 的 `/org` 不加载全局插件，不读取 Fast 开关；recap 用 runtime 直接调用，也不经过社区插件。Fast 的实际服务档位与用量以 OpenAI 后端为准。
+`background-service-tier.ts` 对非 TUI 的 OpenAI 请求（print、JSON、RPC）明确设置 `service_tier: "default"`，包括 learn 的摘要、选材与阅读加工；不会修改 Fast 状态文件。社区插件尊重已有 `service_tier`，因此无论这两个扩展的加载顺序如何，后台都保持普通档位。learn 的整理不加载全局插件，不读取 Fast 开关；recap 用 runtime 直接调用，也不经过社区插件。Fast 的实际服务档位与用量以 OpenAI 后端为准。
 
 不额外安装搜索 MCP、多代理或长期记忆系统；不创建固定 Chat / Work 工作目录。模型与推理强度按下方轮换列表设置。当前不包含自定义提示词模板或 Skill。
 
