@@ -28,6 +28,13 @@ test("print and RPC requests stay Standard in either extension load order", () =
   assert.equal("service_tier" in request, false);
 });
 
+test("learn's phone chats are manual sessions although they run in RPC mode", () => {
+  process.env.LEARN_MANUAL_SESSION = "1";
+  try { assert.equal(standard(request, "rpc"), undefined); }
+  finally { delete process.env.LEARN_MANUAL_SESSION; }
+  assert.deepEqual(standard(request, "rpc"), { ...request, service_tier: "default" });
+});
+
 test("background work overrides even an existing premium tier on both OpenAI APIs", () => {
   for (const active of [model, { ...model, provider: "openai-codex", api: "openai-codex-responses" }]) {
     assert.deepEqual(standard({ ...request, service_tier: "ultrafast" }, "print", active),
