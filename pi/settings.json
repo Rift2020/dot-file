@@ -11,12 +11,14 @@
   "modelThinkingLevels": {
     "openai/gpt-6.1-sol": "high",
     "openai/gpt-6-astra": "xhigh",
-    "google-vertex/gemini-3.8-flash": "medium"
+    "google-vertex/gemini-3.8-flash": "medium",
+    "opencode-go/deepseek-v4.1-flash": "high"
   },
   "enabledModels": [
     "openai/gpt-6.1-sol:high",
     "openai/gpt-6-astra:xhigh",
-    "google-vertex/gemini-3.8-flash:medium"
+    "google-vertex/gemini-3.8-flash:medium",
+    "opencode-go/deepseek-v4.1-flash:high"
   ],
   "hideThinkingBlock": true,
   "packages": [
