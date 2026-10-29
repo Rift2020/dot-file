@@ -12,7 +12,6 @@
 | `extensions/base-prompt.ts` | 全局扩展：替换 Pi 默认系统提示的身份句，去掉固定的“Be concise”，并告诉每个会话当天日期 |
 | `extensions/prompt-export.ts` | 全局扩展：`/export-prompt` 导出最近一次实际发给模型的系统提示、工具定义和请求原文 |
 | `extensions/recap.ts` | 全局扩展：仿 Claude Code，每次回复结束后在对话里补一行 `※ recap:`，一两句话说明目标、当前任务和下一步；`/recap` 开关 |
-| `extensions/background-service-tier.ts` | 全局扩展：非交互 OpenAI 请求固定 Standard，保留手动会话保存的 Fast 开关 |
 | `extensions/paste-image.ts` | 全局扩展：SSH 连到 kitty 时，`Ctrl+V` 经 kitty 读取本地剪贴板里的图片 |
 | `link.sh` | 部署入口：合并设置与搜索配置，链接协作约定和扩展 |
 | `apply-settings.mjs` | 将仓库偏好合并到本机可写的 `settings.json` 与 `web-search.json`，保留本机状态 |
@@ -20,7 +19,6 @@
 | `test-base-prompt.mjs` | 系统提示改写与日期的测试 |
 | `test-prompt-export.mjs` | 各服务商请求格式的提取与导出测试 |
 | `test-recap.mjs` | recap 的触发条件、请求内容、缓存前缀、开关、黑名单与失败处理测试 |
-| `test-background-service-tier.mjs` | 验证交互保留 Fast、后台固定 Standard，以及两个扩展的加载顺序 |
 | `test-paste-image.mjs` | 图片粘贴的启用条件、kitten 调用、授权密码传递与失败处理测试 |
 | `.gitignore` | 使用显式白名单，避免凭据、会话、缓存和运行状态误入 Git |
 
@@ -89,9 +87,7 @@ Pi 自带的 `Ctrl+V` 会把剪贴板里的图片存成临时文件，再把路�
 
 已安装文档解析扩展 `pi-docparser`，固定版本 4.0.0（`pi update` 不会移动固定版本），提供 `document_parse`、`document_search`、`document_screenshot`：本地解析 PDF、按短语查页码、把页面渲染成图片；Office 转换需要另装 LibreOffice。
 
-Fast 使用社区 [pi-gpt-fast-extension](https://github.com/dingdinglz/pi-gpt-fast-extension)（当前 1.2.0）。`/fast on`、`/fast off` 和 `/fast` 保存最后一次开关；新会话、`/new`、`/resume`、`/reload` 和重启恢复该状态，`/fast status` 查看状态。默认首次关闭，支持当前 `openai/gpt-6.1-sol`；只请求 `service_tier: "priority"`，不改变 thinking、模型、提示或工具。状态文件 `~/.pi/agent/extensions/fast-mode.json` 留在本机，不提交 Git。
-
-`background-service-tier.ts` 对非 TUI 的 OpenAI 请求（print、JSON、RPC）明确设置 `service_tier: "default"`，包括 learn 的摘要、选材与阅读加工；不会修改 Fast 状态文件。learn 的手机聊天例外：它以 RPC 模式运行、对面是人，进程带 `LEARN_MANUAL_SESSION=1`，和终端一样沿用 `/fast`。社区插件尊重已有 `service_tier`，因此无论这两个扩展的加载顺序如何，后台都保持普通档位。learn 的整理不加载全局插件，不读取 Fast 开关；recap 用 runtime 直接调用，也不经过社区插件。Fast 的实际服务档位与用量以 OpenAI 后端为准。
+不装 Fast（`service_tier: "priority"`）：2026-10-29 实测 GPT-6.1 Sol 经 ChatGPT 登录请求 priority 看不出提速，后端也只回报 `default`；公开讨论里第三方客户端都是如此，只有官方 Codex 客户端的请求会被加速。
 
 不额外安装搜索 MCP、多代理或长期记忆系统；不创建固定 Chat / Work 工作目录。模型与推理强度按下方轮换列表设置。当前不包含自定义提示词模板或 Skill。
 
@@ -132,7 +128,6 @@ pi --version
 pi install npm:pi-web-access
 pi install npm:@reedchan/statusline@1.11.3
 pi install npm:pi-docparser@4.0.0
-pi install git:github.com/dingdinglz/pi-gpt-fast-extension
 sh ~/.config/pi/link.sh   # 装好插件后再运行一次，给状态栏打补丁
 ```
 
@@ -154,7 +149,7 @@ sh ~/.config/pi/link.sh   # 装好插件后再运行一次，给状态栏打补�
 
 ```sh
 sh -n ~/.config/pi/link.sh
-node --test ~/.config/pi/test-link.mjs ~/.config/pi/test-base-prompt.mjs ~/.config/pi/test-prompt-export.mjs ~/.config/pi/test-recap.mjs ~/.config/pi/test-paste-image.mjs ~/.config/pi/test-background-service-tier.mjs
+node --test ~/.config/pi/test-link.mjs ~/.config/pi/test-base-prompt.mjs ~/.config/pi/test-prompt-export.mjs ~/.config/pi/test-recap.mjs ~/.config/pi/test-paste-image.mjs
 ```
 
 测试使用临时目录，不接触本机认证、会话或实际配置。

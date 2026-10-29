@@ -24,7 +24,6 @@
   "packages": [
     "npm:pi-web-access",
     "npm:@reedchan/statusline@1.11.3",
-    "npm:pi-docparser@4.0.0",
-    "git:github.com/dingdinglz/pi-gpt-fast-extension"
+    "npm:pi-docparser@4.0.0"
   ]
 }

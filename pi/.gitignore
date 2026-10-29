@@ -16,7 +16,5 @@
 !extensions/prompt-export.ts
 !extensions/recap.ts
 !extensions/paste-image.ts
-!extensions/background-service-tier.ts
-!test-background-service-tier.mjs
 !patches/
 !patches/statusline-today-cost.patch

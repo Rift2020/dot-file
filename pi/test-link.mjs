@@ -15,7 +15,7 @@ function fixture(t) {
   mkdirSync(source);
   mkdirSync(join(source, "extensions"));
   mkdirSync(join(source, "patches"));
-  for (const file of ["patches/statusline-today-cost.patch", "link.sh", "apply-settings.mjs", "settings.json", "AGENTS.md", "web-search.json", "extensions/base-prompt.ts", "extensions/prompt-export.ts", "extensions/recap.ts", "extensions/paste-image.ts", "extensions/background-service-tier.ts"]) {
+  for (const file of ["patches/statusline-today-cost.patch", "link.sh", "apply-settings.mjs", "settings.json", "AGENTS.md", "web-search.json", "extensions/base-prompt.ts", "extensions/prompt-export.ts", "extensions/recap.ts", "extensions/paste-image.ts"]) {
     copyFileSync(join(config, file), join(source, file));
   }
   const settings = join(target, "settings.json");
@@ -40,7 +40,7 @@ test("fresh deployment and repeated application are idempotent", (t) => {
   assert.ok(lstatSync(f.settings).isFile());
   assert.equal(statSync(f.settings).mode & 0o777, 0o600);
   assert.deepEqual(f.read(), JSON.parse(readFileSync(join(f.source, "settings.json"))));
-  for (const file of ["AGENTS.md", "extensions/base-prompt.ts", "extensions/prompt-export.ts", "extensions/recap.ts", "extensions/paste-image.ts", "extensions/background-service-tier.ts"]) {
+  for (const file of ["AGENTS.md", "extensions/base-prompt.ts", "extensions/prompt-export.ts", "extensions/recap.ts", "extensions/paste-image.ts"]) {
     assert.equal(readlinkSync(join(f.target, file)), join(f.source, file));
   }
   const search = join(f.target, "web-search.json");
