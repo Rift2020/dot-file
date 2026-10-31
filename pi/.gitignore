@@ -7,6 +7,7 @@
 !apply-settings.mjs
 !test-link.mjs
 !web-search.json
+!models.json
 !test-base-prompt.mjs
 !test-prompt-export.mjs
 !test-recap.mjs

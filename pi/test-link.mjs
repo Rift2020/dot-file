@@ -15,7 +15,7 @@ function fixture(t) {
   mkdirSync(source);
   mkdirSync(join(source, "extensions"));
   mkdirSync(join(source, "patches"));
-  for (const file of ["patches/statusline-today-cost.patch", "link.sh", "apply-settings.mjs", "settings.json", "AGENTS.md", "web-search.json", "extensions/base-prompt.ts", "extensions/prompt-export.ts", "extensions/recap.ts", "extensions/paste-image.ts"]) {
+  for (const file of ["patches/statusline-today-cost.patch", "link.sh", "apply-settings.mjs", "settings.json", "AGENTS.md", "web-search.json", "models.json", "extensions/base-prompt.ts", "extensions/prompt-export.ts", "extensions/recap.ts", "extensions/paste-image.ts"]) {
     copyFileSync(join(config, file), join(source, file));
   }
   const settings = join(target, "settings.json");
@@ -46,11 +46,17 @@ test("fresh deployment and repeated application are idempotent", (t) => {
   const search = join(f.target, "web-search.json");
   assert.ok(lstatSync(search).isFile());
   assert.deepEqual(JSON.parse(readFileSync(search, "utf8")), JSON.parse(readFileSync(join(f.source, "web-search.json"))));
+  const models = join(f.target, "models.json");
+  assert.ok(lstatSync(models).isFile());
+  assert.equal(statSync(models).mode & 0o777, 0o600);
+  assert.deepEqual(JSON.parse(readFileSync(models, "utf8")), JSON.parse(readFileSync(join(f.source, "models.json"))));
   const before = statSync(f.settings).mtimeMs;
   const searchBefore = statSync(search).mtimeMs;
+  const modelsBefore = statSync(models).mtimeMs;
   success(f.run());
   assert.equal(statSync(f.settings).mtimeMs, before);
   assert.equal(statSync(search).mtimeMs, searchBefore);
+  assert.equal(statSync(models).mtimeMs, modelsBefore);
   assert.equal(existsSync(`${f.settings}.before-dotfiles.bak`), false);
 });
 
@@ -125,6 +131,20 @@ test("search settings keep machine-only keys and migrate a legacy symlink", (t) 
   success(g.run());
   assert.ok(lstatSync(legacy).isFile());
   assert.deepEqual(JSON.parse(readFileSync(legacy, "utf8")), shared);
+});
+
+test("model overrides keep this machine's own endpoints and provider settings", (t) => {
+  const f = fixture(t);
+  mkdirSync(f.target);
+  const models = join(f.target, "models.json");
+  const ollama = { baseUrl: "http://localhost:11434/v1", api: "openai-completions", apiKey: "ollama", models: [{ id: "qwen2.5-coder:7b" }] };
+  writeFileSync(models, JSON.stringify({ providers: { ollama, openai: { baseUrl: "https://proxy.example.com/v1" } } }));
+  success(f.run());
+  const shared = JSON.parse(readFileSync(join(f.source, "models.json")));
+  assert.deepEqual(JSON.parse(readFileSync(models, "utf8")), {
+    providers: { ollama, openai: { baseUrl: "https://proxy.example.com/v1", ...shared.providers.openai } },
+  });
+  assert.equal(statSync(models).mode & 0o777, 0o600);
 });
 
 test("legacy settings symlink is migrated without writing to the repository", (t) => {

@@ -4,7 +4,7 @@ set -eu
 pi_config_source=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
 pi_config_target=${PI_CODING_AGENT_DIR:-"$HOME/.pi/agent"}
 # Settings files are merged into local writable copies; the rest are symlinked.
-pi_config_merged="settings.json web-search.json"
+pi_config_merged="settings.json web-search.json models.json"
 pi_config_linked="AGENTS.md extensions/base-prompt.ts extensions/prompt-export.ts extensions/recap.ts extensions/paste-image.ts"
 
 # Preflight all destinations before changing any configuration files.

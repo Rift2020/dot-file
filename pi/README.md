@@ -8,13 +8,14 @@
 | --- | --- |
 | `settings.json` | 可跨机器同步的偏好：项目信任、界面、上下文压缩、默认模型、轮换与插件列表 |
 | `web-search.json` | pi-web-access 的 Clash fake-IP 地址池兼容设置、联网工具加载方式和托管抓取兜底；不存放密钥 |
+| `models.json` | 内置模型的元数据覆盖，目前只把 GPT-6.1 Sol 的上下文窗口设为 500K（见下文）；不存放端点或密钥 |
 | `AGENTS.md` | 中文协作、简单任务直接执行、复杂任务先讨论、尊重只读要求、难以撤销的操作先确认、证据与交付约定 |
 | `extensions/base-prompt.ts` | 全局扩展：替换 Pi 默认系统提示的身份句，去掉固定的“Be concise”，并告诉每个会话当天日期 |
 | `extensions/prompt-export.ts` | 全局扩展：`/export-prompt` 导出最近一次实际发给模型的系统提示、工具定义和请求原文 |
 | `extensions/recap.ts` | 全局扩展：仿 Claude Code，每次回复结束后在对话里补一行 `※ recap:`，一两句话说明目标、当前任务和下一步；`/recap` 开关 |
 | `extensions/paste-image.ts` | 全局扩展：SSH 连到 kitty 时，`Ctrl+V` 经 kitty 读取本地剪贴板里的图片 |
-| `link.sh` | 部署入口：合并设置与搜索配置，链接协作约定和扩展 |
-| `apply-settings.mjs` | 将仓库偏好合并到本机可写的 `settings.json` 与 `web-search.json`，保留本机状态 |
+| `link.sh` | 部署入口：合并设置、搜索配置和模型覆盖，链接协作约定和扩展 |
+| `apply-settings.mjs` | 将仓库偏好合并到本机可写的 `settings.json`、`web-search.json` 与 `models.json`，保留本机状态 |
 | `test-link.mjs` | 部署、重复执行、迁移、冲突与异常处理测试 |
 | `test-base-prompt.mjs` | 系统提示改写与日期的测试 |
 | `test-prompt-export.mjs` | 各服务商请求格式的提取与导出测试 |
@@ -117,6 +118,12 @@ Pi 自带的 `Ctrl+V` 会把剪贴板里的图片存成临时文件，再把路�
 
 这里只限制快捷轮换范围，仍可用 `/model` 选择其他已接入模型。不需要预设扩展、提示词模板或 Skill。
 
+### Sol 的上下文窗口
+
+Pi 给 `openai` 提供方的 GPT 模型统一标 272K：用 API key 直连时，输入超过 272K 的请求整次按 2 倍输入价计费，Pi 默认停在这条线以下。这里用的是 Sign in with ChatGPT，OpenAI 说明 GPT-6.1 Sol 在订阅额度内没有长上下文附加费，Codex 和 ChatGPT Work 的默认窗口是 500K，所以 `models.json` 用 `modelOverrides` 把 `openai/gpt-6.1-sol` 设为 500K，自动压缩从约 256K 推迟到约 484K。GPT-6 Astra 没有公布订阅下的 500K，Codex 的模型列表里仍是 272K，因此不改。用 API key 时，超过 272K 的请求按长上下文价格计费。
+
+learn 读同一个 `models.json`，聊天和整理也按 500K 计算。改动在新开的 Pi 会话或 `/model` 重新加载后生效；learn 的常驻服务要重启。
+
 ## Mac 与 Linux 同步
 
 只同步本目录的配置文件。在每台机器分别安装 Pi（要求 Node.js 22.19 或更新版本），再运行部署脚本：
@@ -136,14 +143,14 @@ sh ~/.config/pi/link.sh   # 装好插件后再运行一次，给状态栏打补�
 ### 偏好与本机状态分离
 
 - `AGENTS.md` 和 `extensions/` 下的扩展使用软链接，仓库修改直接反映到本机文件；扩展的改动在 `/reload` 或重启后生效。
-- `settings.json` 和 `web-search.json` **不是软链接**：脚本将仓库设置递归合并到本机文件。仓库声明的键优先；没有声明的本机键（包括嵌套键）保留；数组整体替换。
+- `settings.json`、`web-search.json` 和 `models.json` **不是软链接**：脚本将仓库设置递归合并到本机文件。仓库声明的键优先；没有声明的本机键（包括嵌套键）保留；数组整体替换。
 - `deviceId`、`lastChangelogVersion` 不保存在仓库。Pi 可在本机维护这些状态而不会弄脏 Git 工作区。删除仓库中的某个键不会自动删除本机对应的键，需要在本机单独删除。
 - 首次变更已有设置时，原文件备份到目标目录的 `<文件名>.before-dotfiles.bak`；不覆盖已有备份。写入通过同目录临时文件与原子替换完成，新设置和新备份权限为 `0600`。
-- 旧版指向本仓库 `settings.json` 或 `web-search.json` 的软链接会自动迁移为普通文件，不修改链接源。已有普通设置文件会合并；其他软链接、目录、无效 JSON，以及已有非本仓库的指令 / 扩展均拒绝覆盖。脚本先检查所有目标路径，两个设置文件都通过校验后才开始写入；重复部署相同设置不会重写文件。
+- 旧版指向本仓库 `settings.json` 或 `web-search.json` 的软链接会自动迁移为普通文件，不修改链接源。已有普通设置文件会合并；其他软链接、目录、无效 JSON，以及已有非本仓库的指令 / 扩展均拒绝覆盖。脚本先检查所有目标路径，所有合并文件都通过校验后才开始写入；重复部署相同设置不会重写文件。
 
 部署时避免同时在 Pi 的设置界面修改配置。正在运行的会话可以继续，设置重载或下次启动时读取本机文件。若需要回退本机设置，退出 Pi 后复制备份到 `settings.json`，再重启。
 
-整个 `~/.pi/agent` 不进入 dotfiles：安装目录、`bin/`、插件安装产物 `npm/`、账号 `auth.json`、模型端点配置 `models.json`、模型缓存 `models-store.json`、会话、日志、信任记录、`web-search-cache/` 与 `statusline/state/` 各机独立。插件通过 `settings.json` 的 `packages` 声明及上面的安装命令重建，不复制 `node_modules`。新增需要同步的资源时，显式更新本目录的 Git 白名单与部署脚本。
+整个 `~/.pi/agent` 不进入 dotfiles：安装目录、`bin/`、插件安装产物 `npm/`、账号 `auth.json`、`models.json` 里本机自己的端点和密钥（合并时保留）、模型缓存 `models-store.json`、会话、日志、信任记录、`web-search-cache/` 与 `statusline/state/` 各机独立。插件通过 `settings.json` 的 `packages` 声明及上面的安装命令重建，不复制 `node_modules`。新增需要同步的资源时，显式更新本目录的 Git 白名单与部署脚本。
 
 ### 验证
 
