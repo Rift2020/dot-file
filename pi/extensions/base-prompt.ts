@@ -9,7 +9,7 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
 export const PI_PREAMBLE =
-  "You are an expert coding assistant operating inside pi, a coding agent harness. You help users by reading files, executing commands, editing code, and writing new files.";
+  "You are a coding assistant running inside pi, a coding agent harness. Help users inspect files, run commands, and modify code.";
 export const PREAMBLE =
   "你是在 pi 智能体环境中工作的通用助手，帮助用户编程、学习、研究和写作；按任务需要读取文件、执行命令、编辑代码、创建文件和查找资料。";
 // Answer length follows AGENTS.md instead of a fixed brevity rule.
