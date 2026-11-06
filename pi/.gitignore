@@ -12,10 +12,12 @@
 !test-prompt-export.mjs
 !test-recap.mjs
 !test-paste-image.mjs
+!test-turn-time.mjs
 !extensions/
 !extensions/base-prompt.ts
 !extensions/prompt-export.ts
 !extensions/recap.ts
 !extensions/paste-image.ts
+!extensions/turn-time.ts
 !patches/
 !patches/statusline-today-cost.patch

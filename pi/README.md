@@ -14,6 +14,7 @@
 | `extensions/prompt-export.ts` | 全局扩展：`/export-prompt` 导出最近一次实际发给模型的系统提示、工具定义和请求原文 |
 | `extensions/recap.ts` | 全局扩展：仿 Claude Code，每次回复结束后在对话里补一行 `※ recap:`，一两句话说明目标、当前任务和下一步；`/recap` 开关 |
 | `extensions/paste-image.ts` | 全局扩展：SSH 连到 kitty 时，`Ctrl+V` 经 kitty 读取本地剪贴板里的图片 |
+| `extensions/turn-time.ts` | 全局扩展：仿 Claude Code，运行中输入框边框显示 `Working 1m 5s`，结束后在对话里补一行 `✻ Worked for 5m 26s · done 14:16`；只在终端显示，不写入会话 |
 | `link.sh` | 部署入口：合并设置、搜索配置和模型覆盖，链接协作约定和扩展 |
 | `apply-settings.mjs` | 将仓库偏好合并到本机可写的 `settings.json`、`web-search.json` 与 `models.json`，保留本机状态 |
 | `test-link.mjs` | 部署、重复执行、迁移、冲突与异常处理测试 |
@@ -21,6 +22,7 @@
 | `test-prompt-export.mjs` | 各服务商请求格式的提取与导出测试 |
 | `test-recap.mjs` | recap 的触发条件、请求内容、缓存前缀、开关、黑名单与失败处理测试 |
 | `test-paste-image.mjs` | 图片粘贴的启用条件、kitten 调用、授权密码传递与失败处理测试 |
+| `test-turn-time.mjs` | 用时格式、实时计时、结束行，以及只在终端显示的测试 |
 | `.gitignore` | 使用显式白名单，避免凭据、会话、缓存和运行状态误入 Git |
 
 `settings.json` 中由本方案设置的四项基础设置：
@@ -156,7 +158,7 @@ sh ~/.config/pi/link.sh   # 装好插件后再运行一次，给状态栏打补�
 
 ```sh
 sh -n ~/.config/pi/link.sh
-node --test ~/.config/pi/test-link.mjs ~/.config/pi/test-base-prompt.mjs ~/.config/pi/test-prompt-export.mjs ~/.config/pi/test-recap.mjs ~/.config/pi/test-paste-image.mjs
+node --test ~/.config/pi/test-link.mjs ~/.config/pi/test-base-prompt.mjs ~/.config/pi/test-prompt-export.mjs ~/.config/pi/test-recap.mjs ~/.config/pi/test-paste-image.mjs ~/.config/pi/test-turn-time.mjs
 ```
 
 测试使用临时目录，不接触本机认证、会话或实际配置。
