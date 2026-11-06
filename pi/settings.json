@@ -5,6 +5,10 @@
   "compaction": {
     "enabled": true
   },
+  "retry": {
+    "baseDelayMs": 5000,
+    "maxRetries": 5
+  },
   "defaultProvider": "openai",
   "defaultModel": "gpt-6.1-sol",
   "defaultThinkingLevel": "high",
