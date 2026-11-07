@@ -13,11 +13,13 @@
 !test-recap.mjs
 !test-paste-image.mjs
 !test-turn-time.mjs
+!test-subagent.mjs
 !extensions/
 !extensions/base-prompt.ts
 !extensions/prompt-export.ts
 !extensions/recap.ts
 !extensions/paste-image.ts
 !extensions/turn-time.ts
+!extensions/subagent.ts
 !patches/
 !patches/statusline-today-cost.patch

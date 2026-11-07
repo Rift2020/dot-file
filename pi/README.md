@@ -15,6 +15,7 @@
 | `extensions/recap.ts` | 全局扩展：仿 Claude Code，每次回复结束后在对话里补一行 `※ recap:`，一两句话说明目标、当前任务和下一步；`/recap` 开关 |
 | `extensions/paste-image.ts` | 全局扩展：SSH 连到 kitty 时，`Ctrl+V` 经 kitty 读取本地剪贴板里的图片 |
 | `extensions/turn-time.ts` | 全局扩展：仿 Claude Code，运行中输入框边框显示 `Working 1m 5s`，结束后在对话里补一行 `✻ Worked for 5m 26s · done 14:16`；只在终端显示，不写入会话 |
+| `extensions/subagent.ts` | 全局扩展：`subagent` 工具，派几个子代理并行做事、各自交回结论；最多两层，只在前台运行，模型限 flash 和 sol；`/subagent-clean` 清理子代理目录（见下文） |
 | `link.sh` | 部署入口：合并设置、搜索配置和模型覆盖，链接协作约定和扩展 |
 | `apply-settings.mjs` | 将仓库偏好合并到本机可写的 `settings.json`、`web-search.json` 与 `models.json`，保留本机状态 |
 | `test-link.mjs` | 部署、重复执行、迁移、冲突与异常处理测试 |
@@ -23,6 +24,7 @@
 | `test-recap.mjs` | recap 的触发条件、请求内容、缓存前缀、开关、黑名单与失败处理测试 |
 | `test-paste-image.mjs` | 图片粘贴的启用条件、kitten 调用、授权密码传递与失败处理测试 |
 | `test-turn-time.mjs` | 用时格式、实时计时、结束行，以及只在终端显示的测试 |
+| `test-subagent.mjs` | 子代理的并行与排队、追问、嵌套层数、工具档位、沙箱、中断、抖动重试、花费合计与目录清理的测试（用 Pi 的假模型，不联网） |
 | `.gitignore` | 使用显式白名单，避免凭据、会话、缓存和运行状态误入 Git |
 
 `settings.json` 中由本方案设置的四项基础设置：
@@ -78,6 +80,27 @@ Pi 自带的 `Ctrl+V` 会把剪贴板里的图片存成临时文件，再把路�
 - **做法**：仿 Pi 示例 `interactive-shell.ts`，先暂停界面、把终端交给 `kitten clipboard --get-clipboard`，由它经 kitty 读取本地剪贴板里的图片并转成 PNG；读完恢复界面。图片和 Pi 自带粘贴一样存成 `/tmp/pi-clipboard-<uuid>.png`，路径插进输入框。剪贴板里没有图片时只提示，文字仍用 kitty 的 `Ctrl+Shift+V` 粘贴。
 - **授权**：kitty 默认在程序读取剪贴板前弹窗询问。扩展每个 Pi 进程生成一个随机密码，通过文件描述符交给 kitten，不出现在命令行参数里。kitty 弹窗时选择记住这个密码，同一个 Pi 进程之后的粘贴就不再询问；`/reload` 或重启 Pi 后会再问一次。弹窗两分钟没有回应则放弃这次粘贴。
 
+### 子代理
+
+`extensions/subagent.ts` 注册 `subagent` 工具：主代理把几件事分给子代理，它们在同一个 Pi 进程里同时开工，做完后各自的最后一条回复合成一条工具结果交回。工具说明要求只在用户要求用子代理时才用，平时只占一个工具说明（约 1.1k 字符，不到 300 token）。
+
+- **从空白开始**：子代理看不到主对话，任务说明要写全。它不加载其他扩展、技能和提示词模板，只有 Pi 默认的系统提示、`AGENTS.md` 和一段"你是子代理"的说明：最后一条回复原样交给主代理，不能向用户提问，回复只写结论和依据。像 `learn video` 怎么用，由主代理写进任务。
+- **模型**：只有 `flash`（`opencode-go/deepseek-v4.1-flash`，默认，思考 max）和 `sol`（`openai/gpt-6.1-sol`，思考沿用 `modelThinkingLevels`），名单在文件开头的 `MODELS`；每个任务可以另指定思考等级，模型不支持的等级由 Pi 取最接近的一档。
+- **并行**：一次调用的任务个数不限，每一层同时最多跑 4 个，其余排队。两层各用一个计数器，因为第 1 层子代理会占着名额等自己的孙代理，共用一个会卡死。
+- **层数**：子代理还能再派孙代理，孙代理没有这个工具，所以最多两层。
+- **工具档位**：
+  - `read`（默认）：`read`、`grep`、`find`、`ls`、`bash`，没有 `edit` 和 `write`。bash 在子代理自己的空目录里启动，套在系统沙箱里，除了这个目录和临时目录哪里都写不了，读文件和联网不受影响，适合 `git clone` 下来读源码。macOS 用自带的 `sandbox-exec`，Linux 用 bubblewrap（Debian 上 `sudo apt-get install bubblewrap`）；两样都没有时只读档的 bash 直接报错，不退回成不受限的 bash。`learn video` 要写视频库和缓存，在只读档里会被拦下，暂时走 `write` 档。
+  - `write`：和主代理一样的七个内置工具，不加限制，工作目录是主代理的。
+  - 两档都带 pi-web-access 的 `web_search`、`fetch_content`、`get_search_content`：子代理加载主会话里注册 `web_search` 的那个扩展文件。拿不到 learn 的记忆工具，它们只注册在 learn 自己的聊天会话里。
+- **追问**：每段结果开头是编号，如 `[a1 · flash max · read · 6 次工具调用]`。主代理以后把编号填进 `followUp`，就是给那个子代理追加消息，它沿用原来的模型、工具和上下文；重开 Pi 后也能接着问。
+- **重试**：沿用 `retry` 设置的指数退避，但子代理每次的等待乘一个 0.5–1.5 的随机数（到 60 秒封顶后也一样），并行的子代理遇到限流不会挤在同一时刻重试；主代理的重试不变。
+- **进度、中断和花费**：运行中工具结果处每秒刷新一行一个子代理（用时、工具调用次数、正在用的工具）；按 Esc 会停下所有子代理；子代理和孙代理的用量计入主会话的页脚和 `/session` 总花费。
+
+**存放和清理**：子代理放在 `~/.pi/agent/subagents/<主会话 id>/`，`a1.jsonl` 是会话，`a1/` 是它的独占目录。主会话目录里不多任何文件，所以 learn 的整理、搜索和备份只看到主会话里的那条工具调用和结果，看不到子代理内部。主会话没有会话文件时（`--no-session`、`-p`），子代理只在内存里，独占目录放系统临时目录，主会话结束时删掉。
+
+- 每次启动时，主会话文件已经不存在的目录整个删掉：learn 凌晨删掉的 `/temp` 会话、手动删掉的会话，它们的子代理下一次打开 Pi 时跟着删。
+- 独占目录会一直保留，以便追问时还在。`/subagent-clean` 删掉当前会话以外所有的独占目录（子会话保留，之后追问拿到的是新的空目录），并报告释放了多少。启动时总占用超过 5 GB 会提示一次。
+
 ## 插件
 
 已安装联网扩展 `pi-web-access`，保留默认自动选择搜索来源和 `workflow: none`（不打开结果整理页面、不额外生成摘要）；未添加搜索服务密钥。普通零配置搜索可使用 Exa MCP；选用通过 ChatGPT 登录的 OpenAI 模型时，插件会优先尝试复用该授权搜索。
@@ -94,7 +117,7 @@ Pi 自带的 `Ctrl+V` 会把剪贴板里的图片存成临时文件，再把路�
 
 不装 Fast（`service_tier: "priority"`）：2026-10-29 实测 GPT-6.1 Sol 经 ChatGPT 登录请求 priority 看不出提速，后端也只回报 `default`；公开讨论里第三方客户端都是如此，只有官方 Codex 客户端的请求会被加速。
 
-不额外安装搜索 MCP、多代理或长期记忆系统；不创建固定 Chat / Work 工作目录。模型与推理强度按下方轮换列表设置。当前不包含自定义提示词模板或 Skill。
+不额外安装搜索 MCP、多代理插件或长期记忆系统（子代理用上面自写的扩展）；不创建固定 Chat / Work 工作目录。模型与推理强度按下方轮换列表设置。当前不包含自定义提示词模板或 Skill。
 
 ## 本机使用
 
@@ -160,7 +183,7 @@ sh ~/.config/pi/link.sh   # 装好插件后再运行一次，给状态栏打补�
 
 ```sh
 sh -n ~/.config/pi/link.sh
-node --test ~/.config/pi/test-link.mjs ~/.config/pi/test-base-prompt.mjs ~/.config/pi/test-prompt-export.mjs ~/.config/pi/test-recap.mjs ~/.config/pi/test-paste-image.mjs ~/.config/pi/test-turn-time.mjs
+node --test ~/.config/pi/test-link.mjs ~/.config/pi/test-base-prompt.mjs ~/.config/pi/test-prompt-export.mjs ~/.config/pi/test-recap.mjs ~/.config/pi/test-paste-image.mjs ~/.config/pi/test-turn-time.mjs ~/.config/pi/test-subagent.mjs
 ```
 
 测试使用临时目录，不接触本机认证、会话或实际配置。
