@@ -3,9 +3,9 @@ import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { register } from "node:module";
 import { homedir, tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import test, { after } from "node:test";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 // The extension imports Pi's packages at runtime; inside Pi they come from the
 // installed release, so resolve them from there for the test as well.
@@ -128,7 +128,9 @@ test("the sandbox command for each platform, and none without a sandbox", () => 
 
 test("inside the real sandbox a command writes its own directory but nothing else", (t) => {
   const work = join(base, "sandbox it's");
-  const outside = join(base, "outside.txt");
+  // Not in a temp dir: on Linux the sandbox gives /tmp its own empty copy, so writes there just vanish.
+  const outside = join(dirname(fileURLToPath(import.meta.url)), ".sandbox-probe");
+  t.after(() => rmSync(outside, { force: true }));
   mkdirSync(work);
   // The test folder sits in the system temp dir, which the sandbox lets commands write; allow another one instead.
   const command = ext.sandboxCommand(`echo in > inside.txt; git init -q repo && git -C repo status --short; echo out > '${outside}'`,
