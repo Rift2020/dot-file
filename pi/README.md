@@ -89,7 +89,7 @@ Pi 自带的 `Ctrl+V` 会把剪贴板里的图片存成临时文件，再把路�
 - **并行**：一次调用的任务个数不限，每一层同时最多跑 4 个，其余排队。两层各用一个计数器，因为第 1 层子代理会占着名额等自己的孙代理，共用一个会卡死。
 - **层数**：子代理还能再派孙代理，孙代理没有这个工具，所以最多两层。
 - **工具档位**：
-  - `read`（默认）：`read`、`grep`、`find`、`ls`、`bash`，没有 `edit` 和 `write`。bash 在子代理自己的空目录里启动，套在系统沙箱里，除了这个目录和临时目录哪里都写不了，读文件和联网不受影响，适合 `git clone` 下来读源码。macOS 用自带的 `sandbox-exec`，Linux 用 bubblewrap（Debian 上 `sudo apt-get install bubblewrap`）；两样都没有时只读档的 bash 直接报错，不退回成不受限的 bash。`learn video` 要写视频库和缓存，在只读档里会被拦下，暂时走 `write` 档。
+  - `read`（默认）：`read`、`grep`、`find`、`ls`、`bash`，没有 `edit` 和 `write`。bash 在子代理自己的空目录里启动，套在系统沙箱里，除了这个目录和临时目录哪里都写不了，读文件和联网不受影响，适合 `git clone` 下来读源码。macOS 用自带的 `sandbox-exec`，Linux 用 bubblewrap（Debian 上 `sudo apt-get install bubblewrap`）；两样都没有时只读档的 bash 直接报错，不退回成不受限的 bash。`learn video` 也能用：它把请求交给 learn 的本机视频服务，视频库和缓存由服务写，沙箱只要连得上它的 socket（learn 的 `docs/18-video.md#视频服务`）。
   - `write`：和主代理一样的七个内置工具，不加限制，工作目录是主代理的。
   - 两档都带 pi-web-access 的 `web_search`、`fetch_content`、`get_search_content`：子代理加载主会话里注册 `web_search` 的那个扩展文件。拿不到 learn 的记忆工具，它们只注册在 learn 自己的聊天会话里。
 - **追问**：每段结果开头是编号，如 `[a1 · flash max · read · 6 次工具调用]`。主代理以后把编号填进 `followUp`，就是给那个子代理追加消息，它沿用原来的模型、工具和上下文；重开 Pi 后也能接着问。
