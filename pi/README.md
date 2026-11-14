@@ -114,6 +114,7 @@ Pi 自带的 `Ctrl+V` 会把剪贴板里的图片存成临时文件，再把路�
 - **档位**：只读档在 `work/` 里启动，能读任何文件、能联网、能连 learn 的视频服务，只能写 `work/` 和临时目录；可写档在项目目录里启动，能写项目目录。两档都写不了 `$HOME` 的其他地方，实测过。
   - Codex：`-s workspace-write -C <目录> -c sandbox_workspace_write.network_access=true`。Codex 关网时连本机的 Unix socket 也一起断，所以只读档要开网才能用 `learn video`。
   - Claude Code：`--settings` 打开它自己的 bash 沙箱（`allowUnsandboxedCommands: false`，所有域名、所有本机 socket），`--allowedTools` 放行读工具、Bash、子代理和联网工具；只读档用 `dontAsk` 并去掉编辑工具，可写档用 `acceptEdits`。不能用 `--add-dir`：加进来的目录在沙箱里会变成可写。`dontAsk` 下沙箱的自动放行不算授权，Bash 要写进 `--allowedTools`。
+- **learn 聊天与 ultra**（2026-11-14 在 Mac 的 learn 终端聊天里实测，`/temp` 会话）：主模型都先读 skill 再照做。让 Codex 开 2 个子代理读两个文件 90 秒、让 Claude Code 开 2 个 45 秒，结果都对，Claude Code 的进度行出现在工具输出里。让 Codex 用 ultra 说明 4 个源文件的职责、开不开子代理由它定：170 秒，它开了 1 个子代理并给它也设成 ultra，用量约 49 万输入 token（缓存 44 万）、3.9k 输出，约是同类非 ultra 任务的 3 倍。ultra 走新版多代理工具（`spawn_agent`、`send_message`），`--json` 事件流里完全看不到，只能从 `~/.codex/sessions` 里子代理会话的 `parent_thread_id` 核对。
 - **追问**：Codex 用 `codex exec resume <thread_id>`，Claude Code 用 `--resume <会话 id>`，都要回到原来的目录运行。
 - **只在主对话里用**：`subagent` 的只读子代理已经套在 `sandbox-exec` 里，macOS 不允许沙箱嵌套，在里面启动 Codex 报 `sandbox_apply: Operation not permitted`。
 - **主机**（2026-11-14 实测）：Codex 0.164 的只读档沙箱和 Mac 一样，2 个子代理正常并行；但加了 `--ephemeral`（不存会话）时它派不出子代理，报 `collab spawn failed`，主代理会自己把活做了，所以 skill 不用这个参数。Claude Code 在 Linux 上的沙箱要 bubblewrap 和 socat，2026-11-14 给主机装了 socat（`sudo apt-get install socat`），之后只读档实测同样能联网、连 learn 的视频服务、只写自己的目录。缺这两样时 Claude Code 启动就报 `sandbox required but unavailable` 并退出，不调用模型，也不会退回成无沙箱运行。
