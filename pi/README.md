@@ -15,6 +15,7 @@
 | `extensions/recap.ts` | 全局扩展：仿 Claude Code，每次回复结束后在对话里补一行 `※ recap:`，一两句话说明目标、当前任务和下一步；`/recap` 开关 |
 | `extensions/paste-image.ts` | 全局扩展：SSH 连到 kitty 时，`Ctrl+V` 经 kitty 读取本地剪贴板里的图片 |
 | `extensions/turn-time.ts` | 全局扩展：仿 Claude Code，运行中输入框边框显示 `Working 1m 5s`，结束后在对话里补一行 `✻ Worked for 5m 26s · done 14:16`；只在终端显示，不写入会话 |
+| `extensions/idle-notify.ts` | 全局扩展：仿 Claude Code，回复结束时 kitty 窗口不在焦点上、一分钟内也没切回来，就弹一条 kitty 通知（见下文） |
 | `extensions/subagent.ts` | 全局扩展：`subagent` 工具，派几个子代理并行做事、各自交回结论；最多两层，只在前台运行，模型限 flash 和 sol；`/subagent-clean` 清理子代理目录（见下文） |
 | `skills/external-agents/` | 全局 skill：用户点名时把任务交给本机的 Codex（`codex exec`）或 Claude Code（`claude -p`），需要时让它们自己开子代理；`claude-progress.py` 把 Claude Code 的运行过程显示成每个子代理一行（见下文） |
 | `skills/html-page/` | 全局 skill：用户点名时把这一次的回答做成一页带图表的 HTML 页面（answer-me-with-html）；只在装了它的机器上链接（见下文） |
@@ -27,6 +28,7 @@
 | `test-paste-image.mjs` | 图片粘贴的启用条件、kitten 调用、授权密码传递与失败处理测试 |
 | `test-external-agents.mjs` | `claude-progress.py` 的进度行、结论、失败与被拒工具的测试（喂假的事件流，不调用 Claude） |
 | `test-turn-time.mjs` | 用时格式、实时计时、结束行，以及只在终端显示的测试 |
+| `test-idle-notify.mjs` | 通知转义码，以及离开、切回、中断、新一轮、关闭各种情况下发不发的测试 |
 | `test-subagent.mjs` | 子代理的并行与排队、追问、嵌套层数、工具档位、沙箱、中断、抖动重试、花费合计与目录清理的测试（用 Pi 的假模型，不联网） |
 | `.gitignore` | 使用显式白名单，避免凭据、会话、缓存和运行状态误入 Git |
 
@@ -82,6 +84,15 @@ Pi 自带的 `Ctrl+V` 会把剪贴板里的图片存成临时文件，再把路�
 - **启用条件**：SSH 会话、终端是 kitty、不在 tmux 里（tmux 会拦下 kitty 的剪贴板请求），且 `PATH` 里有 `kitten`。用 `kitten ssh` 登录时 kitty 会在远端装好 `kitten`。条件不满足时不接管，`Ctrl+V` 仍是 Pi 自带的行为。只在交互界面生效。
 - **做法**：仿 Pi 示例 `interactive-shell.ts`，先暂停界面、把终端交给 `kitten clipboard --get-clipboard`，由它经 kitty 读取本地剪贴板里的图片并转成 PNG；读完恢复界面。图片和 Pi 自带粘贴一样存成 `/tmp/pi-clipboard-<uuid>.png`，路径插进输入框。剪贴板里没有图片时只提示，文字仍用 kitty 的 `Ctrl+Shift+V` 粘贴。
 - **授权**：kitty 默认在程序读取剪贴板前弹窗询问。扩展每个 Pi 进程生成一个随机密码，通过文件描述符交给 kitten，不出现在命令行参数里。kitty 弹窗时选择记住这个密码，同一个 Pi 进程之后的粘贴就不再询问；`/reload` 或重启 Pi 后会再问一次。弹窗两分钟没有回应则放弃这次粘贴。
+
+### 空闲通知
+
+`extensions/idle-notify.ts` 仿 Claude Code 的 “Claude is waiting for your input”，但看的是焦点，不是按键：
+
+- **规则**：一次运行完全结束（`agent_settled`，重试、压缩和排队消息都跑完）时，如果这个 kitty 窗口不在焦点上，就计时一分钟；期间切回来或开始新一轮就取消，到点就发。结束时窗口在焦点上不发；按 Esc 中断的不发；出错停下的照发。
+- **通知**：kitty 的 OSC 99 通知，标题 `Pi · <目录名>`。带 `o=unfocused`，kitty 显示前会再确认一次窗口没焦点。声音用 macOS 给 kitty 通知配的声音（系统设置 → 通知 → kitty），扩展不另外响铃。点通知回到那个窗口或标签。同一个 Pi 进程的新通知替换旧的。
+- **焦点从哪来**：全屏模式下 Pi 自己打开了终端的焦点上报（`ESC[I` / `ESC[O`），但它的输入监听排在扩展前面，会把这两个信号吃掉，扩展的 `onTerminalInput` 收不到（Pi 1.5.2 `pi-tui/dist/tui-alt-screen.js` 的 `handleViewportInput`）。所以扩展直接在 `process.stdin` 上再挂一个只读的监听，不拦任何输入。
+- **范围**：只在终端界面（`ctx.mode === "tui"`）生效，手机（RPC）和打印模式不受影响，也不用 `ctx.ui.notify`（它会转发到手机）。焦点上报和通知都是转义码，所以 SSH 到服务器上跑也一样，由本机 kitty 弹。非全屏模式下 Pi 不打开焦点上报，扩展当作一直有焦点，不发；tmux 默认不转发 kitty 通知，这种情况没有处理。
 
 ### 子代理
 
@@ -224,7 +235,7 @@ sh ~/.config/pi/link.sh   # 装好插件后再运行一次，给状态栏打补�
 
 ```sh
 sh -n ~/.config/pi/link.sh
-node --test ~/.config/pi/test-link.mjs ~/.config/pi/test-base-prompt.mjs ~/.config/pi/test-prompt-export.mjs ~/.config/pi/test-recap.mjs ~/.config/pi/test-paste-image.mjs ~/.config/pi/test-turn-time.mjs ~/.config/pi/test-subagent.mjs ~/.config/pi/test-external-agents.mjs
+node --test ~/.config/pi/test-link.mjs ~/.config/pi/test-base-prompt.mjs ~/.config/pi/test-prompt-export.mjs ~/.config/pi/test-recap.mjs ~/.config/pi/test-paste-image.mjs ~/.config/pi/test-turn-time.mjs ~/.config/pi/test-idle-notify.mjs ~/.config/pi/test-subagent.mjs ~/.config/pi/test-external-agents.mjs
 ```
 
 测试使用临时目录，不接触本机认证、会话或实际配置。

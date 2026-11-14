@@ -5,7 +5,7 @@ pi_config_source=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
 pi_config_target=${PI_CODING_AGENT_DIR:-"$HOME/.pi/agent"}
 # Settings files are merged into local writable copies; the rest are symlinked.
 pi_config_merged="settings.json web-search.json models.json"
-pi_config_linked="AGENTS.md extensions/base-prompt.ts extensions/prompt-export.ts extensions/recap.ts extensions/paste-image.ts extensions/turn-time.ts extensions/subagent.ts skills/external-agents/SKILL.md skills/external-agents/claude-progress.py"
+pi_config_linked="AGENTS.md extensions/base-prompt.ts extensions/prompt-export.ts extensions/recap.ts extensions/paste-image.ts extensions/turn-time.ts extensions/idle-notify.ts extensions/subagent.ts skills/external-agents/SKILL.md skills/external-agents/claude-progress.py"
 # The HTML page skill drives a separate checkout (see README); link it only on machines that have one.
 pi_html_tool=$HOME/.local/share/answer-me-with-html/skills/answer-me-with-html/scripts/am.mjs
 if [ -f "$pi_html_tool" ]; then

@@ -13,6 +13,7 @@
 !test-recap.mjs
 !test-paste-image.mjs
 !test-turn-time.mjs
+!test-idle-notify.mjs
 !test-subagent.mjs
 !test-external-agents.mjs
 !extensions/
@@ -21,6 +22,7 @@
 !extensions/recap.ts
 !extensions/paste-image.ts
 !extensions/turn-time.ts
+!extensions/idle-notify.ts
 !extensions/subagent.ts
 !skills/
 !skills/external-agents/
