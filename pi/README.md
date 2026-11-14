@@ -116,7 +116,7 @@ Pi 自带的 `Ctrl+V` 会把剪贴板里的图片存成临时文件，再把路�
   - Claude Code：`--settings` 打开它自己的 bash 沙箱（`allowUnsandboxedCommands: false`，所有域名、所有本机 socket），`--allowedTools` 放行读工具、Bash、子代理和联网工具；只读档用 `dontAsk` 并去掉编辑工具，可写档用 `acceptEdits`。不能用 `--add-dir`：加进来的目录在沙箱里会变成可写。`dontAsk` 下沙箱的自动放行不算授权，Bash 要写进 `--allowedTools`。
 - **追问**：Codex 用 `codex exec resume <thread_id>`，Claude Code 用 `--resume <会话 id>`，都要回到原来的目录运行。
 - **只在主对话里用**：`subagent` 的只读子代理已经套在 `sandbox-exec` 里，macOS 不允许沙箱嵌套，在里面启动 Codex 报 `sandbox_apply: Operation not permitted`。
-- **主机**：Codex 0.164 和 Claude Code 都已登录。Claude Code 在 Linux 上的沙箱要 bubblewrap 和 socat，主机缺 socat（`sudo apt-get install socat`），装好前 Claude Code 在主机上会因为沙箱起不来而直接报错，不会退回成无沙箱运行。
+- **主机**（2026-11-14 实测）：Codex 0.164 的只读档沙箱和 Mac 一样，2 个子代理正常并行；但加了 `--ephemeral`（不存会话）时它派不出子代理，报 `collab spawn failed`，主代理会自己把活做了，所以 skill 不用这个参数。Claude Code 已登录。Claude Code 在 Linux 上的沙箱要 bubblewrap 和 socat，主机缺 socat（`sudo apt-get install socat`），装好前 Claude Code 在主机上启动就报 `sandbox required but unavailable … socat not installed` 并退出，不调用模型，也不会退回成无沙箱运行。
 - **测试留下的记录**：两个 CLI 的会话默认都会保存，会出现在 Codex 和 Claude Code 各自的历史里；Codex 每个子代理单独存一份，`codex delete --force <id>` 删父会话时一起删掉，Claude Code 用 `claude purge <运行目录>/work`。
 
 ## 插件

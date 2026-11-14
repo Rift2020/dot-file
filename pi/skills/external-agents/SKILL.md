@@ -54,6 +54,7 @@ echo "exit=$?"; cat "$RUN/answer.md"
 - 可写档：`-C` 换成项目目录。
 - `max_concurrent_threads_per_session` 是同时跑的子代理上限，填要的个数（最多 8），多出来的排队。要让子代理省额度，加 `-c 'agents.default_subagent_reasoning_effort="medium"'`。
 - 用户要 ultra 时把 `model_reasoning_effort` 改成 `"ultra"`：最高推理，并由它自己决定开不开子代理、开几个。
+- 不要加 `--ephemeral`：主机上的 Codex 0.164 不存会话时派不出子代理（`collab spawn failed`），会悄悄由主代理自己做。
 - 失败（`exit` 不是 0 或没有 `answer.md`）时看 `progress.log` 末尾。用量在 `events.jsonl` 最后的 `turn.completed`。
 - 追问：会话 id 是 `events.jsonl` 第一行的 `thread_id`。回到原来的目录接着问，沙箱要重新指定：
 
