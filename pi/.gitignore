@@ -26,5 +26,7 @@
 !skills/external-agents/
 !skills/external-agents/SKILL.md
 !skills/external-agents/claude-progress.py
+!skills/html-page/
+!skills/html-page/SKILL.md
 !patches/
 !patches/statusline-today-cost.patch

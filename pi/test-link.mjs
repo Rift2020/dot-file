@@ -8,24 +8,28 @@ import test from "node:test";
 
 const config = dirname(fileURLToPath(import.meta.url));
 const LINKED = ["AGENTS.md", "extensions/base-prompt.ts", "extensions/prompt-export.ts", "extensions/recap.ts", "extensions/paste-image.ts", "extensions/turn-time.ts", "extensions/subagent.ts", "skills/external-agents/SKILL.md", "skills/external-agents/claude-progress.py"];
+const HTML_SKILL = "skills/html-page/SKILL.md";
 function fixture(t) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), "pi-dotfiles-")));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const source = join(root, "dot files");
   const target = join(root, "agent");
+  const home = join(root, "home");
   mkdirSync(source);
+  mkdirSync(home);
   mkdirSync(join(source, "extensions"));
   mkdirSync(join(source, "patches"));
   mkdirSync(join(source, "skills/external-agents"), { recursive: true });
-  for (const file of ["patches/statusline-today-cost.patch", "link.sh", "apply-settings.mjs", "settings.json", "AGENTS.md", "web-search.json", "models.json", ...LINKED.slice(1)]) {
+  mkdirSync(join(source, "skills/html-page"));
+  for (const file of ["patches/statusline-today-cost.patch", "link.sh", "apply-settings.mjs", "settings.json", "AGENTS.md", "web-search.json", "models.json", HTML_SKILL, ...LINKED.slice(1)]) {
     copyFileSync(join(config, file), join(source, file));
   }
   const settings = join(target, "settings.json");
   return {
-    source, target, settings,
+    source, target, settings, home,
     run(destination = target) {
       return spawnSync("sh", [join(source, "link.sh")], {
-        encoding: "utf8", env: { ...process.env, PI_CODING_AGENT_DIR: destination },
+        encoding: "utf8", env: { ...process.env, HOME: home, PI_CODING_AGENT_DIR: destination },
       });
     },
     read() { return JSON.parse(readFileSync(settings, "utf8")); },
@@ -60,6 +64,21 @@ test("fresh deployment and repeated application are idempotent", (t) => {
   assert.equal(statSync(search).mtimeMs, searchBefore);
   assert.equal(statSync(models).mtimeMs, modelsBefore);
   assert.equal(existsSync(`${f.settings}.before-dotfiles.bak`), false);
+});
+
+test("the HTML page skill is linked only on a machine that has its tool", (t) => {
+  const f = fixture(t);
+  const without = f.run();
+  success(without);
+  assert.match(without.stdout, /html-page skill left out/);
+  assert.equal(existsSync(join(f.target, HTML_SKILL)), false);
+  const tool = join(f.home, ".local/share/answer-me-with-html/skills/answer-me-with-html/scripts/am.mjs");
+  mkdirSync(dirname(tool), { recursive: true });
+  writeFileSync(tool, "");
+  const installed = f.run();
+  success(installed);
+  assert.doesNotMatch(installed.stdout, /left out/);
+  assert.equal(readlinkSync(join(f.target, HTML_SKILL)), join(f.source, HTML_SKILL));
 });
 
 // The pre-image of every hunk, which the patch applies to with offsets like the real file.

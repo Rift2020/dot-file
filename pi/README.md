@@ -17,14 +17,15 @@
 | `extensions/turn-time.ts` | 全局扩展：仿 Claude Code，运行中输入框边框显示 `Working 1m 5s`，结束后在对话里补一行 `✻ Worked for 5m 26s · done 14:16`；只在终端显示，不写入会话 |
 | `extensions/subagent.ts` | 全局扩展：`subagent` 工具，派几个子代理并行做事、各自交回结论；最多两层，只在前台运行，模型限 flash 和 sol；`/subagent-clean` 清理子代理目录（见下文） |
 | `skills/external-agents/` | 全局 skill：用户点名时把任务交给本机的 Codex（`codex exec`）或 Claude Code（`claude -p`），需要时让它们自己开子代理；`claude-progress.py` 把 Claude Code 的运行过程显示成每个子代理一行（见下文） |
+| `skills/html-page/` | 全局 skill：用户点名时把这一次的回答做成一页带图表的 HTML 页面（answer-me-with-html）；只在装了它的机器上链接（见下文） |
 | `link.sh` | 部署入口：合并设置、搜索配置和模型覆盖，链接协作约定、扩展和 skill |
 | `apply-settings.mjs` | 将仓库偏好合并到本机可写的 `settings.json`、`web-search.json` 与 `models.json`，保留本机状态 |
 | `test-link.mjs` | 部署、重复执行、迁移、冲突与异常处理测试 |
 | `test-base-prompt.mjs` | 系统提示改写与日期的测试 |
 | `test-prompt-export.mjs` | 各服务商请求格式的提取与导出测试 |
 | `test-recap.mjs` | recap 的触发条件、请求内容、缓存前缀、开关、黑名单与失败处理测试 |
-| `test-paste-image.mjs` |
-| `test-external-agents.mjs` | `claude-progress.py` 的进度行、结论、失败与被拒工具的测试（喂假的事件流，不调用 Claude） | 图片粘贴的启用条件、kitten 调用、授权密码传递与失败处理测试 |
+| `test-paste-image.mjs` | 图片粘贴的启用条件、kitten 调用、授权密码传递与失败处理测试 |
+| `test-external-agents.mjs` | `claude-progress.py` 的进度行、结论、失败与被拒工具的测试（喂假的事件流，不调用 Claude） |
 | `test-turn-time.mjs` | 用时格式、实时计时、结束行，以及只在终端显示的测试 |
 | `test-subagent.mjs` | 子代理的并行与排队、追问、嵌套层数、工具档位、沙箱、中断、抖动重试、花费合计与目录清理的测试（用 Pi 的假模型，不联网） |
 | `.gitignore` | 使用显式白名单，避免凭据、会话、缓存和运行状态误入 Git |
@@ -120,6 +121,27 @@ Pi 自带的 `Ctrl+V` 会把剪贴板里的图片存成临时文件，再把路�
 - **主机**（2026-11-14 实测）：Codex 0.164 的只读档沙箱和 Mac 一样，2 个子代理正常并行；但加了 `--ephemeral`（不存会话）时它派不出子代理，报 `collab spawn failed`，主代理会自己把活做了，所以 skill 不用这个参数。Claude Code 在 Linux 上的沙箱要 bubblewrap 和 socat，2026-11-14 给主机装了 socat（`sudo apt-get install socat`），之后只读档实测同样能联网、连 learn 的视频服务、只写自己的目录。缺这两样时 Claude Code 启动就报 `sandbox required but unavailable` 并退出，不调用模型，也不会退回成无沙箱运行。
 - **测试留下的记录**：两个 CLI 的会话默认都会保存，会出现在 Codex 和 Claude Code 各自的历史里；Codex 每个子代理单独存一份，`codex delete --force <id>` 删父会话时一起删掉，Claude Code 用 `claude purge <运行目录>/work`。
 
+### HTML 页面（answer-me-with-html）
+
+`skills/html-page/SKILL.md` 是一个 skill：用户明确要求（"用 HTML 讲""做成页面"）时，主代理用 [answer-me-with-html](https://github.com/QingYunA/answer-me-with-html) 把这一次的回答做成一页带时序图、流程图和表格的 HTML，在浏览器里打开。模型只写一份 Markdown 稿件，排版和画图由它的命令行工具完成。平时只占 skill 清单里的一行说明（288 个字符）。
+
+- **为什么不直接装上游的 skill**：它自带的说明约 1000 个字符，并要求模型"拿不准就用"，会主动出页面。所以上游放在 skill 目录之外、文件不改，由这个 skill 指过去，并改掉两条：
+  - 只在用户这一次点名时出页面，之后的回合没再要求就照常用文字回答。
+  - 文字回复要写出每个面板的要点，不是上游要求的 2–3 行。learn 的整理对工具调用的参数只留开头 400 和结尾 100 个字符，聊天搜索只索引正文，只写在页面里的内容进不了记忆。
+- **只在有浏览器的机器上装**：页面生成在跑聊天的那台机器上，主机上的终端聊天和手机聊天打不开它。`link.sh` 找不到上游时不链接这个 skill，所以没装的机器的 skill 清单里没有它。在 Mac 上安装：
+
+  ```sh
+  git clone --depth 1 --branch v0.5.11 https://github.com/QingYunA/answer-me-with-html ~/.local/share/answer-me-with-html
+  node ~/.local/share/answer-me-with-html/skills/answer-me-with-html/scripts/am.mjs config set update_check off
+  sh link.sh
+  ```
+
+- **版本固定在 v0.5.11**：它是一个约 1 MB 的打包脚本，以用户权限运行，上游更新很快。关掉 `update_check` 后它不再每天向 GitHub 查新版本。要更新时，在检出目录里运行 `git fetch --depth 1 origin tag <版本>` 和 `git checkout <版本>`，再看一遍上游 `SKILL.md` 的改动是否还和上面两条对得上。
+- **数据**：页面在 `~/.answer-me-with-html/pages/`，每页是一个不依赖网络的 HTML 文件；设置在 `~/.answer-me-with-html/config.json`。清理用上面那个脚本的 `clean` 命令，默认删 30 天前的页面。
+- **实测**（2026-11-14，Mac 的 learn 终端聊天，`/temp` 会话，gpt-6.1-sol high）：
+  - 说"用 HTML 讲一下 TCP 三次握手和四次挥手"：模型先读这个 skill，再读上游的 `SKILL.md`（26,000 个字符，只在用到的那场聊天里读），渲染出 8 个面板、4 张时序图的页面。文字回复是一句结论、每个面板一行要点和页面链接。整轮 161 秒，大部分花在查 RFC 和核对上，渲染本身约 0.1 秒。
+  - 同一场聊天接着问拥塞控制，没提页面：模型照常用文字回答，没有出页面。
+
 ## 插件
 
 已安装联网扩展 `pi-web-access`，保留默认自动选择搜索来源和 `workflow: none`（不打开结果整理页面、不额外生成摘要）；未添加搜索服务密钥。普通零配置搜索可使用 Exa MCP；选用通过 ChatGPT 登录的 OpenAI 模型时，插件会优先尝试复用该授权搜索。
@@ -136,7 +158,7 @@ Pi 自带的 `Ctrl+V` 会把剪贴板里的图片存成临时文件，再把路�
 
 不装 Fast（`service_tier: "priority"`）：2026-10-29 实测 GPT-6.1 Sol 经 ChatGPT 登录请求 priority 看不出提速，后端也只回报 `default`；公开讨论里第三方客户端都是如此，只有官方 Codex 客户端的请求会被加速。
 
-不额外安装搜索 MCP、多代理插件或长期记忆系统（子代理用上面自写的扩展）；不创建固定 Chat / Work 工作目录。模型与推理强度按下方轮换列表设置。当前不包含自定义提示词模板；自带的 skill 只有上面的外部代理。
+不额外安装搜索 MCP、多代理插件或长期记忆系统（子代理用上面自写的扩展）；不创建固定 Chat / Work 工作目录。模型与推理强度按下方轮换列表设置。当前不包含自定义提示词模板；自带的 skill 只有上面的外部代理和 HTML 页面。
 
 ## 本机使用
 
