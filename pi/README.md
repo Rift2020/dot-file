@@ -16,13 +16,15 @@
 | `extensions/paste-image.ts` | 全局扩展：SSH 连到 kitty 时，`Ctrl+V` 经 kitty 读取本地剪贴板里的图片 |
 | `extensions/turn-time.ts` | 全局扩展：仿 Claude Code，运行中输入框边框显示 `Working 1m 5s`，结束后在对话里补一行 `✻ Worked for 5m 26s · done 14:16`；只在终端显示，不写入会话 |
 | `extensions/subagent.ts` | 全局扩展：`subagent` 工具，派几个子代理并行做事、各自交回结论；最多两层，只在前台运行，模型限 flash 和 sol；`/subagent-clean` 清理子代理目录（见下文） |
-| `link.sh` | 部署入口：合并设置、搜索配置和模型覆盖，链接协作约定和扩展 |
+| `skills/external-agents/` | 全局 skill：用户点名时把任务交给本机的 Codex（`codex exec`）或 Claude Code（`claude -p`），需要时让它们自己开子代理；`claude-progress.py` 把 Claude Code 的运行过程显示成每个子代理一行（见下文） |
+| `link.sh` | 部署入口：合并设置、搜索配置和模型覆盖，链接协作约定、扩展和 skill |
 | `apply-settings.mjs` | 将仓库偏好合并到本机可写的 `settings.json`、`web-search.json` 与 `models.json`，保留本机状态 |
 | `test-link.mjs` | 部署、重复执行、迁移、冲突与异常处理测试 |
 | `test-base-prompt.mjs` | 系统提示改写与日期的测试 |
 | `test-prompt-export.mjs` | 各服务商请求格式的提取与导出测试 |
 | `test-recap.mjs` | recap 的触发条件、请求内容、缓存前缀、开关、黑名单与失败处理测试 |
-| `test-paste-image.mjs` | 图片粘贴的启用条件、kitten 调用、授权密码传递与失败处理测试 |
+| `test-paste-image.mjs` |
+| `test-external-agents.mjs` | `claude-progress.py` 的进度行、结论、失败与被拒工具的测试（喂假的事件流，不调用 Claude） | 图片粘贴的启用条件、kitten 调用、授权密码传递与失败处理测试 |
 | `test-turn-time.mjs` | 用时格式、实时计时、结束行，以及只在终端显示的测试 |
 | `test-subagent.mjs` | 子代理的并行与排队、追问、嵌套层数、工具档位、沙箱、中断、抖动重试、花费合计与目录清理的测试（用 Pi 的假模型，不联网） |
 | `.gitignore` | 使用显式白名单，避免凭据、会话、缓存和运行状态误入 Git |
@@ -101,6 +103,22 @@ Pi 自带的 `Ctrl+V` 会把剪贴板里的图片存成临时文件，再把路�
 - 每次启动时，主会话文件已经不存在的目录整个删掉：learn 凌晨删掉的 `/temp` 会话、手动删掉的会话，它们的子代理下一次打开 Pi 时跟着删。
 - 独占目录会一直保留，以便追问时还在。`/subagent-clean` 删掉当前会话以外所有的独占目录（子会话保留，之后追问拿到的是新的空目录），并报告释放了多少。启动时总占用超过 5 GB 会提示一次。
 
+### 外部代理（Codex、Claude Code）
+
+`skills/external-agents/SKILL.md` 是一个 skill：用户点名 Codex、Claude Code（CC）或"外部代理"时，主代理把任务写成任务书交给本机的 CLI，需要几个子代理就在任务书里写几个，它们自己并行，最后交回一份结论。没点名时子代理仍走上面的 `subagent` 工具。平时只占 skill 清单里的一行说明，用到时才读全文。
+
+- **怎么跑**：每次在 `~/.cache/external-agents/<随机名>/` 建运行目录，任务书、事件记录和回答都放这里，`work/` 是它的独占目录。不放 `/tmp`，因为主机的 `/tmp` 是内存盘，克隆下来的仓库会占内存。目录留着方便追问，用不着时删掉。
+- **两个 CLI 的分工**（2026-11-14 在 Mac 上实测）：
+  - Codex：用 ChatGPT 套餐额度，和 Pi 的 openai 模型共用一份。子代理一个一个派出，3 个各要 20 秒的活总共约 66 秒；`-c agents.max_concurrent_threads_per_session=N` 限制同时跑几个，多出来的排队。运行中看不到单个子代理的进度，事件流里只有主代理的等待。
+  - Claude Code：用 Claude Pro 额度，额度小，起步每次约 2 万 token（`--safe-mode` 关掉本机插件、MCP、skills 后约 1.5 万）。子代理同时派出，同样的活约 34 秒。`claude-progress.py` 读它的 `stream-json` 事件，每个子代理开始、结束各打一行，Pi 的 bash 输出里实时可见，最后是结论、会话 id 和估算花费。套餐登录下 `claude -p` 算订阅额度，不会被当成第三方应用拦下。
+- **档位**：只读档在 `work/` 里启动，能读任何文件、能联网、能连 learn 的视频服务，只能写 `work/` 和临时目录；可写档在项目目录里启动，能写项目目录。两档都写不了 `$HOME` 的其他地方，实测过。
+  - Codex：`-s workspace-write -C <目录> -c sandbox_workspace_write.network_access=true`。Codex 关网时连本机的 Unix socket 也一起断，所以只读档要开网才能用 `learn video`。
+  - Claude Code：`--settings` 打开它自己的 bash 沙箱（`allowUnsandboxedCommands: false`，所有域名、所有本机 socket），`--allowedTools` 放行读工具、Bash、子代理和联网工具；只读档用 `dontAsk` 并去掉编辑工具，可写档用 `acceptEdits`。不能用 `--add-dir`：加进来的目录在沙箱里会变成可写。`dontAsk` 下沙箱的自动放行不算授权，Bash 要写进 `--allowedTools`。
+- **追问**：Codex 用 `codex exec resume <thread_id>`，Claude Code 用 `--resume <会话 id>`，都要回到原来的目录运行。
+- **只在主对话里用**：`subagent` 的只读子代理已经套在 `sandbox-exec` 里，macOS 不允许沙箱嵌套，在里面启动 Codex 报 `sandbox_apply: Operation not permitted`。
+- **主机**：Codex 0.164 和 Claude Code 都已登录。Claude Code 在 Linux 上的沙箱要 bubblewrap 和 socat，主机缺 socat（`sudo apt-get install socat`），装好前 Claude Code 在主机上会因为沙箱起不来而直接报错，不会退回成无沙箱运行。
+- **测试留下的记录**：两个 CLI 的会话默认都会保存，会出现在 Codex 和 Claude Code 各自的历史里；Codex 每个子代理单独存一份，`codex delete --force <id>` 删父会话时一起删掉，Claude Code 用 `claude purge <运行目录>/work`。
+
 ## 插件
 
 已安装联网扩展 `pi-web-access`，保留默认自动选择搜索来源和 `workflow: none`（不打开结果整理页面、不额外生成摘要）；未添加搜索服务密钥。普通零配置搜索可使用 Exa MCP；选用通过 ChatGPT 登录的 OpenAI 模型时，插件会优先尝试复用该授权搜索。
@@ -117,7 +135,7 @@ Pi 自带的 `Ctrl+V` 会把剪贴板里的图片存成临时文件，再把路�
 
 不装 Fast（`service_tier: "priority"`）：2026-10-29 实测 GPT-6.1 Sol 经 ChatGPT 登录请求 priority 看不出提速，后端也只回报 `default`；公开讨论里第三方客户端都是如此，只有官方 Codex 客户端的请求会被加速。
 
-不额外安装搜索 MCP、多代理插件或长期记忆系统（子代理用上面自写的扩展）；不创建固定 Chat / Work 工作目录。模型与推理强度按下方轮换列表设置。当前不包含自定义提示词模板或 Skill。
+不额外安装搜索 MCP、多代理插件或长期记忆系统（子代理用上面自写的扩展）；不创建固定 Chat / Work 工作目录。模型与推理强度按下方轮换列表设置。当前不包含自定义提示词模板；自带的 skill 只有上面的外部代理。
 
 ## 本机使用
 
@@ -183,7 +201,7 @@ sh ~/.config/pi/link.sh   # 装好插件后再运行一次，给状态栏打补�
 
 ```sh
 sh -n ~/.config/pi/link.sh
-node --test ~/.config/pi/test-link.mjs ~/.config/pi/test-base-prompt.mjs ~/.config/pi/test-prompt-export.mjs ~/.config/pi/test-recap.mjs ~/.config/pi/test-paste-image.mjs ~/.config/pi/test-turn-time.mjs ~/.config/pi/test-subagent.mjs
+node --test ~/.config/pi/test-link.mjs ~/.config/pi/test-base-prompt.mjs ~/.config/pi/test-prompt-export.mjs ~/.config/pi/test-recap.mjs ~/.config/pi/test-paste-image.mjs ~/.config/pi/test-turn-time.mjs ~/.config/pi/test-subagent.mjs ~/.config/pi/test-external-agents.mjs
 ```
 
 测试使用临时目录，不接触本机认证、会话或实际配置。

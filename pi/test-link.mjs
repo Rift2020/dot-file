@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 const config = dirname(fileURLToPath(import.meta.url));
+const LINKED = ["AGENTS.md", "extensions/base-prompt.ts", "extensions/prompt-export.ts", "extensions/recap.ts", "extensions/paste-image.ts", "extensions/turn-time.ts", "extensions/subagent.ts", "skills/external-agents/SKILL.md", "skills/external-agents/claude-progress.py"];
 function fixture(t) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), "pi-dotfiles-")));
   t.after(() => rmSync(root, { recursive: true, force: true }));
@@ -15,7 +16,8 @@ function fixture(t) {
   mkdirSync(source);
   mkdirSync(join(source, "extensions"));
   mkdirSync(join(source, "patches"));
-  for (const file of ["patches/statusline-today-cost.patch", "link.sh", "apply-settings.mjs", "settings.json", "AGENTS.md", "web-search.json", "models.json", "extensions/base-prompt.ts", "extensions/prompt-export.ts", "extensions/recap.ts", "extensions/paste-image.ts", "extensions/turn-time.ts", "extensions/subagent.ts"]) {
+  mkdirSync(join(source, "skills/external-agents"), { recursive: true });
+  for (const file of ["patches/statusline-today-cost.patch", "link.sh", "apply-settings.mjs", "settings.json", "AGENTS.md", "web-search.json", "models.json", ...LINKED.slice(1)]) {
     copyFileSync(join(config, file), join(source, file));
   }
   const settings = join(target, "settings.json");
@@ -40,7 +42,7 @@ test("fresh deployment and repeated application are idempotent", (t) => {
   assert.ok(lstatSync(f.settings).isFile());
   assert.equal(statSync(f.settings).mode & 0o777, 0o600);
   assert.deepEqual(f.read(), JSON.parse(readFileSync(join(f.source, "settings.json"))));
-  for (const file of ["AGENTS.md", "extensions/base-prompt.ts", "extensions/prompt-export.ts", "extensions/recap.ts", "extensions/paste-image.ts", "extensions/turn-time.ts", "extensions/subagent.ts"]) {
+  for (const file of LINKED) {
     assert.equal(readlinkSync(join(f.target, file)), join(f.source, file));
   }
   const search = join(f.target, "web-search.json");
@@ -180,6 +182,20 @@ test("existing extension files and a non-directory extensions path are left unto
   assert.notEqual(f.run().status, 0);
   assert.equal(existsSync(f.settings), false);
   assert.equal(existsSync(join(f.target, "AGENTS.md")), false);
+});
+
+test("a non-directory skills path is left untouched before settings are changed", (t) => {
+  const f = fixture(t);
+  mkdirSync(f.target);
+  writeFileSync(join(f.target, "skills"), "not a directory");
+  assert.notEqual(f.run().status, 0);
+  assert.equal(existsSync(f.settings), false);
+  assert.equal(readFileSync(join(f.target, "skills"), "utf8"), "not a directory");
+  rmSync(join(f.target, "skills"));
+  mkdirSync(join(f.target, "skills"));
+  writeFileSync(join(f.target, "skills/external-agents"), "not a directory");
+  assert.notEqual(f.run().status, 0);
+  assert.equal(existsSync(f.settings), false);
 });
 
 test("foreign and dangling settings symlinks are refused", (t) => {
