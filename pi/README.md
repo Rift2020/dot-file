@@ -155,7 +155,9 @@ Pi 自带的 `Ctrl+V` 会把剪贴板里的图片存成临时文件，再把路�
 
 ## 插件
 
-已安装联网扩展 `pi-web-access`，保留默认自动选择搜索来源和 `workflow: none`（不打开结果整理页面、不额外生成摘要）。普通零配置搜索可使用 Exa MCP；选用通过 ChatGPT 登录的 OpenAI 模型时，插件会优先尝试复用该授权搜索。为抓取兜底配置的 Firecrawl 也会进入自动搜索的候选，但排在 OpenAI 和 Exa 之后，基本用不到。
+已安装联网扩展 `pi-web-access`，保留默认自动选择搜索来源和 `workflow: none`（不打开结果整理页面、不额外生成摘要）。选用通过 ChatGPT 登录的 OpenAI 模型时，插件先复用该授权让 OpenAI 搜索，Exa 排第二；其他模型（如 Gemini）先用 Exa，OpenAI 授权作为退路。为抓取兜底配置的 Firecrawl 也会进入自动搜索的候选，但排在 OpenAI 和 Exa 之后，基本用不到。
+
+Exa 用带 key 的正式接口，key 写在各台机器的 `~/.pi/agent/web-search.json`（`exaApiKey`），不进 Git。没配 key 的机器会改走免费的 Exa MCP，结果相同，只是有限流。免费账户每月 $10 额度，不用绑卡，自动搜索每千次 $7，约够 1400 次；2026-10 至 11-15 所有模型合计约 350 次查询，用不完。配 key 不影响抓取：Exa 只有写进 `fetchRouting.providers` 才会参与抓取。2026-11-15 用 18 条历史查询对比：OpenAI 搜索和 Exa 都在 17 条里找到了目标页面，Exa 漏掉的是一条中文查询。OpenAI 返回的是小模型写的短答案加引用，来源列表常混进无关页面和镜像站，每条 6–17 秒；Exa 返回约 3000 字的网页原文摘录，每条约 0.5 秒。
 
 已安装状态栏扩展 `@reedchan/statusline`，沿用插件默认的两行布局，显示上下文占用、模型与 effort、缓存命中率、费用及首字延迟 / 输出速度。运行 `/reload` 或重启 Pi 后加载；`Ctrl+Q` 或 `/breakdown` 可切换上下文明细。当前未配置币种转换，费用按插件默认显示美元。
 
