@@ -155,13 +155,17 @@ Pi 自带的 `Ctrl+V` 会把剪贴板里的图片存成临时文件，再把路�
 
 ## 插件
 
-已安装联网扩展 `pi-web-access`，保留默认自动选择搜索来源和 `workflow: none`（不打开结果整理页面、不额外生成摘要）；未添加搜索服务密钥。普通零配置搜索可使用 Exa MCP；选用通过 ChatGPT 登录的 OpenAI 模型时，插件会优先尝试复用该授权搜索。
+已安装联网扩展 `pi-web-access`，保留默认自动选择搜索来源和 `workflow: none`（不打开结果整理页面、不额外生成摘要）。普通零配置搜索可使用 Exa MCP；选用通过 ChatGPT 登录的 OpenAI 模型时，插件会优先尝试复用该授权搜索。为抓取兜底配置的 Firecrawl 也会进入自动搜索的候选，但排在 OpenAI 和 Exa 之后，基本用不到。
 
 已安装状态栏扩展 `@reedchan/statusline`，沿用插件默认的两行布局，显示上下文占用、模型与 effort、缓存命中率、费用及首字延迟 / 输出速度。运行 `/reload` 或重启 Pi 后加载；`Ctrl+Q` 或 `/breakdown` 可切换上下文明细。当前未配置币种转换，费用按插件默认显示美元。
 
 插件 1.11.3 的当天费用（today）只算到当前会话：汇总其他会话时只看记录顶层的 `usage`，而模型回答的用量记在 `message` 里；它也只扫 `~/.pi/agent/sessions`，不看 learn 的会话目录。因此 `settings.json` 固定 1.11.3，`link.sh` 给已安装的插件打上 [`patches/statusline-today-cost.patch`](patches/statusline-today-cost.patch)：读消息里的用量，并把当前会话所在的会话根目录一起统计（learn 聊天是 `~/.local/share/learn/sessions`，含整理用的会话）。原生 Pi 里仍只统计 `~/.pi/agent/sessions`。上游修好后去掉补丁和固定版本；补丁对不上新代码时，`link.sh` 会提示。
 
-`web-search.json` 设置 `ssrf.allowRanges: ["198.18.0.0/16"]`，适配本机 Clash 的 fake-IP 地址池，避免读取公网网页时被插件按保留地址拦截。`toolActivation: "eager"` 让联网工具从会话第一轮就可用：插件默认的按需启用要先调用 `web_enable`，多一轮模型往返，而且 GPT 会话启用后的那次请求会丢掉全部提示缓存（2026-10-16 统计的 9 次全部如此）；常驻的工具说明约 2.7k token，基本都能命中缓存。`fetchRouting.allowRemoteHostedProviders: true` 打开托管抓取兜底：本机直接抓取失败（403、提取不完整等）的网页再交给第三方服务抓，正常能抓到的不经过它们。没有配置其他服务的密钥时只会用到免 key 的 Jina Reader；2026-10-16 实测它救回了本机抓取失败的 openai.com、help.openai.com 和 docs.github.com 页面，但不带 key 时 Jina 拒绝匿名访问 reddit。代价是这些失败的网址和抓回的内容会经过 Jina 的服务器。Jina 的 key 若要配置，写在本机的 `~/.pi/agent/web-search.json`（`jinaApiKey`），不进 Git。其他地址的现有防护保留；其他机器使用前应确认该网段同样由可信代理接管，不使用 fake-IP 时应移除此项。搜索服务密钥使用环境变量等本机凭据来源，不写入这个受 Git 管理的文件。只适用于某台机器的设置（例如本机为避开内存盘 `/tmp` 而设的 `githubClone.clonePath`）直接写在那台机器的 `~/.pi/agent/web-search.json`，部署时保留。
+`web-search.json` 设置 `ssrf.allowRanges: ["198.18.0.0/16"]`，适配本机 Clash 的 fake-IP 地址池，避免读取公网网页时被插件按保留地址拦截。`toolActivation: "eager"` 让联网工具从会话第一轮就可用：插件默认的按需启用要先调用 `web_enable`，多一轮模型往返，而且 GPT 会话启用后的那次请求会丢掉全部提示缓存（2026-10-16 统计的 9 次全部如此）；常驻的工具说明约 2.7k token，基本都能命中缓存。`fetchRouting.allowRemoteHostedProviders: true` 打开托管抓取兜底：本机直接抓取失败（403、提取不完整等）的网页再交给第三方服务抓，正常能抓到的不经过它们。按插件默认顺序先交给 Firecrawl，再交给 Jina Reader（见下面两段）；代价是这些失败的网址和抓回的内容会经过它们的服务器。其他地址的现有防护保留；其他机器使用前应确认该网段同样由可信代理接管，不使用 fake-IP 时应移除此项。搜索服务密钥使用环境变量等本机凭据来源，不写入这个受 Git 管理的文件。只适用于某台机器的设置（例如本机为避开内存盘 `/tmp` 而设的 `githubClone.clonePath`）直接写在那台机器的 `~/.pi/agent/web-search.json`，部署时保留。
+
+Firecrawl 用官方托管服务（`firecrawlBaseUrl`），免费账户每月 1000 个额度。按 2026-10-16 至 11-15 主机上约 400 个抓取网址、3% 需要兜底估算，每月只用十几个。`firecrawlFreshScrape: true` 让它真正去抓页面：插件默认的 `lockdown` 只读 Firecrawl 已有的缓存，而且每次扣 5 个额度（实际抓取每页 1 个）。key 写在各台机器的 `~/.pi/agent/web-search.json`（`firecrawlApiKey`），不进 Git；没配 key 的机器上 Firecrawl 调用失败后照常交给 Jina。2026-11-15 用历史上抓过的 80 个网址对比：本机抓取一直失败的 21 页里，Firecrawl 抓到 14 页，按插件方式调用的 Jina 抓到 11 页，且后者抓到的 Firecrawl 全都抓到了；本机能抓到的 58 页里，Firecrawl 和 Jina 都保留了数据表格（本机把表格拆成一行一个单元格），Firecrawl 的杂项略多。Firecrawl 不支持 reddit。
+
+Jina Reader 是最后一道兜底。2026-10-16 实测它救回了本机抓取失败的 openai.com、help.openai.com 和 docs.github.com 页面。插件 0.47.0 调用 Jina Reader 时不带 key、并强制不用缓存；`jinaApiKey` 只给 Jina 搜索用，配上也解除不了抓取时的匿名限制（Jina 匿名访问 github.com 和 reddit 会被拒）。要让抓取用上 key 得给插件打补丁，目前不打。
 
 `pi-web-access` 的可选命令行依赖：FFmpeg（含 `ffprobe`）和 `yt-dlp` 用于视频时长、缩略图与按时间抽帧，GitHub CLI 用于需要登录的私有仓库。Debian 上用 `sudo apt-get install --no-install-recommends ffmpeg gh`，`yt-dlp` 用独立环境安装 `uv tool install 'yt-dlp[default]'`（`default` 依赖组带匹配的 EJS 解析脚本，一起更新）。在 `~/.config/yt-dlp/config` 写 `--js-runtimes node`；Node 不在该进程的 PATH 中时写成 `--js-runtimes node:/绝对路径/node`，复用 Pi 管理的 Node。私有仓库另需 `gh auth login`。见 [pi-web-access 安装说明](https://github.com/nicobailon/pi-web-access#install)与 [yt-dlp EJS 配置](https://github.com/yt-dlp/yt-dlp/wiki/EJS)。
 

@@ -7,5 +7,7 @@
   "toolActivation": "eager",
   "fetchRouting": {
     "allowRemoteHostedProviders": true
-  }
+  },
+  "firecrawlBaseUrl": "https://api.firecrawl.dev",
+  "firecrawlFreshScrape": true
 }
