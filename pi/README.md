@@ -8,7 +8,7 @@
 | --- | --- |
 | `settings.json` | 可跨机器同步的偏好：项目信任、界面、上下文压缩、默认模型、轮换与插件列表 |
 | `web-search.json` | pi-web-access 的 Clash fake-IP 地址池兼容设置、联网工具加载方式和托管抓取兜底；不存放密钥 |
-| `models.json` | 内置模型的元数据覆盖，目前只把 GPT-6.1 Sol 的上下文窗口设为 500K（见下文）；不存放端点或密钥 |
+| `models.json` | 内置模型的元数据覆盖，目前把 GPT-6.1 Sol、GPT-6.2 Sol 和 GPT-6.2 Astra 的上下文窗口设为 500K（见下文）；不存放端点或密钥 |
 | `AGENTS.md` | 中文协作、简单任务直接执行、复杂任务先讨论、尊重只读要求、难以撤销的操作先确认、证据与交付约定 |
 | `extensions/base-prompt.ts` | 全局扩展：替换 Pi 默认系统提示的身份句，去掉固定的“Be concise”，并告诉每个会话当天日期 |
 | `extensions/prompt-export.ts` | 全局扩展：`/export-prompt` 导出最近一次实际发给模型的系统提示、工具定义和请求原文 |
@@ -192,7 +192,7 @@ Jina Reader 是最后一道兜底。2026-10-16 实测它救回了本机抓取失
 
 使用 Pi 原生 `enabledModels`，按以下顺序循环；`Ctrl+L` 的模型选择器也默认只列这几项（learn 聊天和手机端的模型列表同样取自这里）：
 
-1. GPT-6.2 Sol：`openai/gpt-6.2-sol:high`
+1. GPT-6.2 Sol：`openai/gpt-6.2-sol:high`（默认模型）
 2. GPT-6.2 Astra：`openai/gpt-6.2-astra:xhigh`
 3. Gemini 4 Hydrogen：`google-vertex/gemini-4-hydrogen:high`（需要 Vertex AI 认证；目录里有 xhigh，但 Pi 1.5.2 的 Google 适配只映射到 high，传 xhigh 会报错）
 4. DeepSeek V4.1 Flash（经 OpenCode Go）：`opencode-go/deepseek-v4.1-flash:high`（需要 OpenCode API key）
@@ -201,13 +201,15 @@ Jina Reader 是最后一道兜底。2026-10-16 实测它救回了本机抓取失
 
 在 Pi 输入界面按 `Ctrl+P` 切到下一项，按 `Ctrl+Shift+P` 切到上一项；每次轮换同时应用该项指定的 effort。可用 `/thinking` 或 `Shift+Tab` 临时调整，下一次轮换回该模型时仍采用列表中的强度。
 
-默认启动使用 `defaultProvider: "openai"`、`defaultModel: "gpt-6.1-sol"`、`defaultThinkingLevel: "high"`，默认模型暂时不在轮换列表里。`modelThinkingLevels` 声明各模型的默认 effort（两代 Sol 为 `high`、两代 Astra 为 `xhigh`、Argon 和 Hydrogen 为 `high`、DeepSeek 为 `high`），通过 `/model` 切换时也会应用；快捷轮换以 `enabledModels` 中的显式强度为准。实际启动仍受可用认证与命令行覆盖规则影响；继续历史会话会恢复原会话的模型和 effort。修改仓库中的设置后运行 `link.sh`，重新启动 Pi 使默认值与轮换列表生效。
+默认启动使用 `defaultProvider: "openai"`、`defaultModel: "gpt-6.2-sol"`、`defaultThinkingLevel: "high"`。`modelThinkingLevels` 声明各模型的默认 effort（两代 Sol 为 `high`、两代 Astra 为 `xhigh`、Argon 和 Hydrogen 为 `high`、DeepSeek 为 `high`），通过 `/model` 切换时也会应用；快捷轮换以 `enabledModels` 中的显式强度为准。实际启动仍受可用认证与命令行覆盖规则影响；继续历史会话会恢复原会话的模型和 effort。修改仓库中的设置后运行 `link.sh`，重新启动 Pi 使默认值与轮换列表生效。
 
 这里只限制快捷轮换范围，仍可用 `/model` 选择其他已接入模型。不需要预设扩展、提示词模板或 Skill。
 
-### Sol 的上下文窗口
+### Sol 和 Astra 的上下文窗口
 
-Pi 给 `openai` 提供方的 GPT 模型统一标 272K：用 API key 直连时，输入超过 272K 的请求整次按 2 倍输入价计费，Pi 默认停在这条线以下。这里用的是 Sign in with ChatGPT，OpenAI 说明 GPT-6.1 Sol 在订阅额度内没有长上下文附加费，Codex 和 ChatGPT Work 的默认窗口是 500K，所以 `models.json` 用 `modelOverrides` 把 `openai/gpt-6.1-sol` 设为 500K，自动压缩从约 256K 推迟到约 484K。GPT-6 Astra 没有公布订阅下的 500K，Codex 的模型列表里仍是 272K，因此不改。用 API key 时，超过 272K 的请求按长上下文价格计费。
+Pi 给 `openai` 提供方的 GPT 模型统一标 272K：用 API key 直连时，输入超过 272K 的请求整次按 2 倍输入价计费，Pi 默认停在这条线以下。这里用的是 Sign in with ChatGPT，OpenAI 说明 GPT-6.1 Sol 在订阅额度内没有长上下文附加费，Codex 和 ChatGPT Work 的默认窗口是 500K，所以 `models.json` 用 `modelOverrides` 把 `openai/gpt-6.1-sol` 设为 500K，自动压缩从约 256K 推迟到约 484K。
+
+2026-11-18 起 GPT-6.2 Sol 和 GPT-6.2 Astra 也设为 500K。依据是 Codex 官方模型目录（openai/codex `codex-rs/models-manager/models.json`，11-17 的提交 `6c0cee5`）：6.2 Sol 默认 `context_window` 500K，和 6.1 Sol 相同；6.2 Astra 默认 272K，但两者的 `max_context_window` 都是 872K，Codex 源码里这个字段的含义是“config 覆盖允许的最大窗口”，即在 Codex 里用 `model_context_window` 把 Astra 调到 500K 是官方允许的。旧的 GPT-6 Astra 也是 272K/872K，没有跟着改。上下文越长，每条消息消耗的订阅额度越多，Astra 本身又是消耗最大的一档；还没有在这条线路上实际发过超过 272K 的请求。用 API key 时，超过 272K 的请求按长上下文价格计费。
 
 learn 读同一个 `models.json`，聊天和整理也按 500K 计算。改动在新开的 Pi 会话或 `/model` 重新加载后生效；learn 的常驻服务要重启。
 
