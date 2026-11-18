@@ -32,7 +32,7 @@ import { Type } from "typebox";
 /** The model whitelist. `thinking` is the default when a task names none; without it, settings decide. */
 export const MODELS: Record<string, { model: string; thinking?: string }> = {
   flash: { model: "opencode-go/deepseek-v4.1-flash", thinking: "max" },
-  sol: { model: "openai/gpt-6.1-sol" },
+  sol: { model: "openai/gpt-6.2-sol" },
 };
 const MAX_DEPTH = 2;
 const RUNNING_PER_LEVEL = 4;
