@@ -75,7 +75,7 @@ Pi 默认系统提示的开头是 “You are an expert coding assistant…”，
 - **生成方式**照 Claude Code 的做法：用当前会话的模型和完整对话，末尾追加 Claude Code 的回顾指令（另加一句：用户写中文就用中文，不超过 80 字）；thinking 跟随会话（high 及以下同档，xhigh、max 用 low），禁止调用工具，超过 400 字符截断。请求沿用主对话最近一次实际请求的系统提示和工具列表（Pi 自己只知道 base-prompt 改写前的提示），并去掉会话里记录系统提示变化的条目，前缀与主对话一致。OpenAI 的提示缓存按推理档位区分，同档才能复用主对话的缓存：2026-10-16 用约 2.8 万 token 的对话实测，high 同档回顾约 $0.006、4–9 秒，固定用 low 则整段按原价约 $0.057、4–6 秒；xhigh 同档要 11–15 秒，所以 xhigh、max 会话仍用 low，按原价计。
 - **显示与保存**：回顾作为自定义条目存进会话记录，翻历史还能看到，但不会发给模型；learn 的整理也会跳过它。条目里另存了模型和用量（输入、缓存命中、输出、花费）。
 - **开关**：`/recap off`、`/recap on` 或 `/recap`（切换），所有模型共用；`/recap status` 查看。状态存在 `~/.pi/agent/extensions/recap.json`，留在本机、不提交 Git，新会话、`/reload` 和重启沿用；没有这个文件时为开启。
-- **模型黑名单**：`recap.ts` 里的 `EXCLUDED_MODELS`，目前是 `openai/gpt-6-astra`；名单里的模型无论开关如何都不生成回顾。
+- **模型黑名单**：`recap.ts` 里的 `EXCLUDED_MODELS`，目前是 `openai/gpt-6-astra` 和 `openai/gpt-6.2-astra`；名单里的模型无论开关如何都不生成回顾。
 
 ### 粘贴图片
 
@@ -190,16 +190,18 @@ Jina Reader 是最后一道兜底。2026-10-16 实测它救回了本机抓取失
 
 ## 模型与 effort 轮换
 
-使用 Pi 原生 `enabledModels`，按以下顺序循环：
+使用 Pi 原生 `enabledModels`，按以下顺序循环；`Ctrl+L` 的模型选择器也默认只列这几项（learn 聊天和手机端的模型列表同样取自这里）：
 
-1. GPT-6.1 Sol：`openai/gpt-6.1-sol:high`（默认模型）
-2. GPT-6 Astra：`openai/gpt-6-astra:xhigh`
-3. Gemini 4 Argon：`google-vertex/gemini-4-argon:high`（需要 Vertex AI 认证）
+1. GPT-6.2 Sol：`openai/gpt-6.2-sol:high`
+2. GPT-6.2 Astra：`openai/gpt-6.2-astra:xhigh`
+3. Gemini 4 Hydrogen：`google-vertex/gemini-4-hydrogen:high`（需要 Vertex AI 认证；目录里有 xhigh，但 Pi 1.5.2 的 Google 适配只映射到 high，传 xhigh 会报错）
 4. DeepSeek V4.1 Flash（经 OpenCode Go）：`opencode-go/deepseek-v4.1-flash:high`（需要 OpenCode API key）
+
+2026-11-18 从 GPT-6.1 Sol、GPT-6 Astra、Gemini 4 Argon 换成上面三项；新型号要先 `pi update --models` 刷新本机模型目录，Pi 才认识。
 
 在 Pi 输入界面按 `Ctrl+P` 切到下一项，按 `Ctrl+Shift+P` 切到上一项；每次轮换同时应用该项指定的 effort。可用 `/thinking` 或 `Shift+Tab` 临时调整，下一次轮换回该模型时仍采用列表中的强度。
 
-默认启动使用 `defaultProvider: "openai"`、`defaultModel: "gpt-6.1-sol"`、`defaultThinkingLevel: "high"`。`modelThinkingLevels` 同时声明四个模型各自的默认 effort（Sol 为 `high`、Astra 为 `xhigh`、Gemini 为 `high`、DeepSeek 为 `high`），通过 `/model` 切换时也会应用；快捷轮换以 `enabledModels` 中的显式强度为准。实际启动仍受可用认证与命令行覆盖规则影响；继续历史会话会恢复原会话的模型和 effort。修改仓库中的设置后运行 `link.sh`，重新启动 Pi 使默认值与轮换列表生效。
+默认启动使用 `defaultProvider: "openai"`、`defaultModel: "gpt-6.1-sol"`、`defaultThinkingLevel: "high"`，默认模型暂时不在轮换列表里。`modelThinkingLevels` 声明各模型的默认 effort（两代 Sol 为 `high`、两代 Astra 为 `xhigh`、Argon 和 Hydrogen 为 `high`、DeepSeek 为 `high`），通过 `/model` 切换时也会应用；快捷轮换以 `enabledModels` 中的显式强度为准。实际启动仍受可用认证与命令行覆盖规则影响；继续历史会话会恢复原会话的模型和 effort。修改仓库中的设置后运行 `link.sh`，重新启动 Pi 使默认值与轮换列表生效。
 
 这里只限制快捷轮换范围，仍可用 `/model` 选择其他已接入模型。不需要预设扩展、提示词模板或 Skill。
 

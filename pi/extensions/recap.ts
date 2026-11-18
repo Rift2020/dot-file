@@ -19,7 +19,7 @@ export const RECAP_PROMPT = "The user stepped away and is coming back. Recap in 
   + "Write in the language of the user's messages: if they write Chinese, answer in Chinese, under 80 characters.";
 export const RECAP_TYPE = "recap";
 /** Expensive models never recap, whatever the switch says. */
-export const EXCLUDED_MODELS: readonly string[] = ["openai/gpt-6-astra"];
+export const EXCLUDED_MODELS: readonly string[] = ["openai/gpt-6-astra", "openai/gpt-6.2-astra"];
 const COMMAND_ARGS = ["on", "off", "status"];
 const MAX_CHARS = 400;
 /** Claude Code's defaults: 3 user turns before the first recap, 2 between recaps. */
