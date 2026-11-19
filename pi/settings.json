@@ -19,12 +19,13 @@
     "openai/gpt-6.2-astra": "xhigh",
     "google-vertex/gemini-4-argon": "high",
     "google-vertex/gemini-4-hydrogen": "high",
+    "google-vertex/gemini-4-neon": "high",
     "opencode-go/deepseek-v4.1-flash": "high"
   },
   "enabledModels": [
     "openai/gpt-6.2-sol:high",
     "openai/gpt-6.2-astra:xhigh",
-    "google-vertex/gemini-4-hydrogen:high",
+    "google-vertex/gemini-4-neon:high",
     "opencode-go/deepseek-v4.1-flash:high"
   ],
   "hideThinkingBlock": true,
