@@ -39,7 +39,7 @@
 - `tuiMode: "fullscreen"`：使用全屏界面。
 - `compaction.enabled: true`：保留自动上下文压缩，阈值沿用 Pi 默认值。
 
-后三项本身也是 Pi 1.0.4 的默认行为，在文件中写明以便理解和同步。`hideThinkingBlock: true` 隐藏对话中的思考块，不改变模型的推理强度。本方案保留原生 `read`、`bash`、`edit`、`write` 工具和自动保存会话。编辑器继承 `VISUAL` / `EDITOR`，不写机器专属路径。
+后三项本身也是 Pi 1.0.4 的默认行为，在文件中写明以便理解和同步。`hideThinkingBlock: true` 隐藏对话中的思考块，不改变模型的推理强度。`branchSummary.skipPrompt: true` 让 `/tree` 跳到别处时不再询问是否总结被离开的分支，直接按不总结处理。本方案保留原生 `read`、`bash`、`edit`、`write` 工具和自动保存会话。编辑器继承 `VISUAL` / `EDITOR`，不写机器专属路径。
 
 `retry` 把出错后的自动重试改为依次等 5、10、20、40、60 秒（Pi 默认等 2、4、8 秒，约 14 秒就放弃）。Vertex 上 Gemini 的 429 限流常持续几分钟，每次失败的请求本身也要 7–18 秒才返回，默认的重试等不到恢复。learn 的会话沿用这里的重试设置。
 

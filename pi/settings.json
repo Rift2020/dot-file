@@ -29,6 +29,9 @@
     "opencode-go/deepseek-v4.1-flash:high"
   ],
   "hideThinkingBlock": true,
+  "branchSummary": {
+    "skipPrompt": true
+  },
   "packages": [
     "npm:pi-web-access",
     "npm:@reedchan/statusline@1.11.3",
