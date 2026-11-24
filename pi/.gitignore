@@ -8,6 +8,7 @@
 !test-link.mjs
 !web-search.json
 !models.json
+!claude-bridge.json
 !test-base-prompt.mjs
 !test-prompt-export.mjs
 !test-recap.mjs

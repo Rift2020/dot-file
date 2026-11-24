@@ -35,6 +35,7 @@
   "packages": [
     "npm:pi-web-access",
     "npm:@reedchan/statusline@1.11.3",
-    "npm:pi-docparser@4.0.0"
+    "npm:pi-docparser@4.0.0",
+    "npm:pi-claude-bridge@0.13.0"
   ]
 }

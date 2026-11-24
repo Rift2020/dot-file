@@ -21,7 +21,7 @@ function fixture(t) {
   mkdirSync(join(source, "patches"));
   mkdirSync(join(source, "skills/external-agents"), { recursive: true });
   mkdirSync(join(source, "skills/html-page"));
-  for (const file of ["patches/statusline-today-cost.patch", "link.sh", "apply-settings.mjs", "settings.json", "AGENTS.md", "web-search.json", "models.json", HTML_SKILL, ...LINKED.slice(1)]) {
+  for (const file of ["patches/statusline-today-cost.patch", "link.sh", "apply-settings.mjs", "settings.json", "AGENTS.md", "web-search.json", "models.json", "claude-bridge.json", HTML_SKILL, ...LINKED.slice(1)]) {
     copyFileSync(join(config, file), join(source, file));
   }
   const settings = join(target, "settings.json");
@@ -56,6 +56,10 @@ test("fresh deployment and repeated application are idempotent", (t) => {
   assert.ok(lstatSync(models).isFile());
   assert.equal(statSync(models).mode & 0o777, 0o600);
   assert.deepEqual(JSON.parse(readFileSync(models, "utf8")), JSON.parse(readFileSync(join(f.source, "models.json"))));
+  const bridge = join(f.target, "claude-bridge.json");
+  assert.ok(lstatSync(bridge).isFile());
+  assert.equal(statSync(bridge).mode & 0o777, 0o600);
+  assert.deepEqual(JSON.parse(readFileSync(bridge, "utf8")), { provider: { systemPromptPreset: false } });
   const before = statSync(f.settings).mtimeMs;
   const searchBefore = statSync(search).mtimeMs;
   const modelsBefore = statSync(models).mtimeMs;

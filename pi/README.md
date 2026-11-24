@@ -9,6 +9,7 @@
 | `settings.json` | 可跨机器同步的偏好：项目信任、界面、上下文压缩、默认模型、轮换与插件列表 |
 | `web-search.json` | pi-web-access 的 Clash fake-IP 地址池兼容设置、联网工具加载方式和托管抓取兜底；不存放密钥 |
 | `models.json` | 内置模型的元数据覆盖，目前把 GPT-6.1 Sol、GPT-6.2 Sol 和 GPT-6.2 Astra 的上下文窗口设为 500K（见下文）；不存放端点或密钥 |
+| `claude-bridge.json` | pi-claude-bridge 的设置：不加 Claude Code 自己的系统提示预设，只发 Pi 渲染的提示（见下文） |
 | `AGENTS.md` | 中文协作、简单任务直接执行、复杂任务先讨论、尊重只读要求、难以撤销的操作先确认、证据与交付约定 |
 | `extensions/base-prompt.ts` | 全局扩展：替换 Pi 默认系统提示的身份句，去掉固定的“Be concise”，并告诉每个会话当天日期 |
 | `extensions/prompt-export.ts` | 全局扩展：`/export-prompt` 导出最近一次实际发给模型的系统提示、工具定义和请求原文 |
@@ -19,8 +20,8 @@
 | `extensions/subagent.ts` | 全局扩展：`subagent` 工具，派几个子代理并行做事、各自交回结论；最多两层，只在前台运行，模型限 flash 和 sol；`/subagent-clean` 清理子代理目录（见下文） |
 | `skills/external-agents/` | 全局 skill：用户点名时把任务交给本机的 Codex（`codex exec`）或 Claude Code（`claude -p`），需要时让它们自己开子代理；`claude-progress.py` 把 Claude Code 的运行过程显示成每个子代理一行（见下文） |
 | `skills/html-page/` | 全局 skill：用户点名时把这一次的回答做成一页带图表的 HTML 页面（answer-me-with-html）；只在装了它的机器上链接（见下文） |
-| `link.sh` | 部署入口：合并设置、搜索配置和模型覆盖，链接协作约定、扩展和 skill |
-| `apply-settings.mjs` | 将仓库偏好合并到本机可写的 `settings.json`、`web-search.json` 与 `models.json`，保留本机状态 |
+| `link.sh` | 部署入口：合并设置、搜索配置、模型覆盖和 Claude 桥接设置，链接协作约定、扩展和 skill |
+| `apply-settings.mjs` | 将仓库偏好合并到本机可写的 `settings.json`、`web-search.json`、`models.json` 与 `claude-bridge.json`，保留本机状态 |
 | `test-link.mjs` | 部署、重复执行、迁移、冲突与异常处理测试 |
 | `test-base-prompt.mjs` | 系统提示改写与日期的测试 |
 | `test-prompt-export.mjs` | 各服务商请求格式的提取与导出测试 |
@@ -173,6 +174,12 @@ Jina Reader 是最后一道兜底。2026-10-16 实测它救回了本机抓取失
 
 已安装文档解析扩展 `pi-docparser`，固定版本 4.0.0（`pi update` 不会移动固定版本），提供 `document_parse`、`document_search`、`document_screenshot`：本地解析 PDF、按短语查页码、把页面渲染成图片；Office 转换需要另装 LibreOffice。
 
+已安装 `pi-claude-bridge`，固定版本 0.13.0，用 Claude 订阅（目前是 Pro）的额度在 Pi 里用 Claude。`Ctrl+L` 后按 Tab 切到全部模型，选 `claude-bridge/…`；不要选 `anthropic/…`，那是 Pi 自带的接入，按 API 计费。插件经官方 Claude Agent SDK 启动 Claude Code，工具仍由 Pi 执行；登录用 Claude Code 自己的（`claude auth login`），不是 Pi 的 `/login`。Anthropic 帮助文章（10-07 更新）说，用套餐登录时 Agent SDK 的用量算订阅额度；服务器另外按系统提示判断是不是第三方应用，判中的请求转到 Extra Usage，没开就报 400 "out of extra usage"，插件会提示。插件作者 11-10 实测，Pi 1.4.0 的默认提示会被判中，1.5 起的不会。
+
+`claude-bridge.json` 设 `systemPromptPreset: false`：只发 Pi 渲染的系统提示，前面不加 Claude Code 自己的预设，免得把编程 CLI 的身份和“要简短”一类规则带回来（base-prompt 去掉的正是这些）。作者 11-11 实测，这种形式同样算订阅额度。代价有三条。系统提示一变（learn 的记忆换了版本，或改了 AGENTS.md 后 `/reload`），下一轮就要把整段对话重新导入一个新的 Claude Code 会话，不走缓存。Claude Code 会在 `~/.claude/projects/<启动目录>/` 另存一份对话，默认 30 天后清理，learn 的 `/temp` 凌晨删不到它。没写超时的 bash 命令一律 120 秒。额度和直接用 Claude Code 共用一份。
+
+实测（2026-11-25，Mac 的 learn 终端聊天，`/temp` 会话，Opus 5.5 high）：它答对了系统提示里的星期，并经 Pi 的 bash 跑了命令。服务器按五小时套餐窗口计（`rateLimitType: five_hour`，`isUsingOverage: false`）。这个账号的 Extra Usage 是关的（`org_level_disabled`），所以被误判也只会报 400，不会扣钱。系统提示加工具约 1.98 万 token，第二次请求全部命中缓存。
+
 不装 Fast（`service_tier: "priority"`）：2026-10-29 实测 GPT-6.1 Sol 经 ChatGPT 登录请求 priority 看不出提速，后端也只回报 `default`；公开讨论里第三方客户端都是如此，只有官方 Codex 客户端的请求会被加速。
 
 不额外安装搜索 MCP、多代理插件或长期记忆系统（子代理用上面自写的扩展）；不创建固定 Chat / Work 工作目录。模型与推理强度按下方轮换列表设置。当前不包含自定义提示词模板；自带的 skill 只有上面的外部代理和 HTML 页面。
@@ -224,6 +231,7 @@ pi --version
 pi install npm:pi-web-access
 pi install npm:@reedchan/statusline@1.11.3
 pi install npm:pi-docparser@4.0.0
+pi install npm:pi-claude-bridge@0.13.0   # 另需 Claude Code 已登录（claude auth login）
 sh ~/.config/pi/link.sh   # 装好插件后再运行一次，给状态栏打补丁
 ```
 
@@ -232,7 +240,7 @@ sh ~/.config/pi/link.sh   # 装好插件后再运行一次，给状态栏打补�
 ### 偏好与本机状态分离
 
 - `AGENTS.md` 和 `extensions/` 下的扩展使用软链接，仓库修改直接反映到本机文件；扩展的改动在 `/reload` 或重启后生效。
-- `settings.json`、`web-search.json` 和 `models.json` **不是软链接**：脚本将仓库设置递归合并到本机文件。仓库声明的键优先；没有声明的本机键（包括嵌套键）保留；数组整体替换。
+- `settings.json`、`web-search.json`、`models.json` 和 `claude-bridge.json` **不是软链接**：脚本将仓库设置递归合并到本机文件。仓库声明的键优先；没有声明的本机键（包括嵌套键）保留；数组整体替换。
 - `deviceId`、`lastChangelogVersion` 不保存在仓库。Pi 可在本机维护这些状态而不会弄脏 Git 工作区。删除仓库中的某个键不会自动删除本机对应的键，需要在本机单独删除。
 - 首次变更已有设置时，原文件备份到目标目录的 `<文件名>.before-dotfiles.bak`；不覆盖已有备份。写入通过同目录临时文件与原子替换完成，新设置和新备份权限为 `0600`。
 - 旧版指向本仓库 `settings.json` 或 `web-search.json` 的软链接会自动迁移为普通文件，不修改链接源。已有普通设置文件会合并；其他软链接、目录、无效 JSON，以及已有非本仓库的指令 / 扩展均拒绝覆盖。脚本先检查所有目标路径，所有合并文件都通过校验后才开始写入；重复部署相同设置不会重写文件。
