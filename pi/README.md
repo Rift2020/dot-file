@@ -201,14 +201,14 @@ Jina Reader 是最后一道兜底。2026-10-16 实测它救回了本机抓取失
 
 1. GPT-6.2 Sol：`openai/gpt-6.2-sol:high`（默认模型）
 2. GPT-6.2 Astra：`openai/gpt-6.2-astra:xhigh`
-3. Gemini 4 Neon：`google-vertex/gemini-4-neon:high`（需要 Vertex AI 认证；目录里有 xhigh，但 Pi 1.5.2 的 Google 适配只映射到 high，传 xhigh 会报 `Unsupported Google thinking level mapping`，Hydrogen 也一样）
+3. Gemini 4 Neon：`google-vertex/gemini-4-neon:xhigh`（需要 Vertex AI 认证；Pi 1.6.1 修复了 Google 适配器的 `xhigh` 映射后从 `high` 升到 `xhigh`，Hydrogen 同）
 4. DeepSeek V4.1 Flash（经 OpenCode Go）：`opencode-go/deepseek-v4.1-flash:high`（需要 OpenCode API key）
 
-2026-11-18 从 GPT-6.1 Sol、GPT-6 Astra、Gemini 4 Argon 换成 GPT-6.2 Sol、GPT-6.2 Astra、Gemini 4 Hydrogen；2026-11-19 Hydrogen 换成 Neon（$3/$15，Hydrogen 为 $1.50/$7.50；learn 的后台任务仍用 Hydrogen，不受这个列表影响）。新型号要先 `pi update --models` 刷新本机模型目录，Pi 才认识。
+2026-11-18 从 GPT-6.1 Sol、GPT-6 Astra、Gemini 4 Argon 换成 GPT-6.2 Sol、GPT-6.2 Astra、Gemini 4 Hydrogen；2026-11-19 Hydrogen 换成 Neon（$3/$15，Hydrogen 为 $1.50/$7.50；learn 的后台任务仍用 Hydrogen，不受这个列表影响）；2026-11-26 随 Pi 1.6.1 升级将 Neon 和 Hydrogen 默认强度升到 `xhigh`。新型号要先 `pi update --models` 刷新本机模型目录，Pi 才认识。
 
 在 Pi 输入界面按 `Ctrl+P` 切到下一项，按 `Ctrl+Shift+P` 切到上一项；每次轮换同时应用该项指定的 effort。可用 `/thinking` 或 `Shift+Tab` 临时调整，下一次轮换回该模型时仍采用列表中的强度。
 
-默认启动使用 `defaultProvider: "openai"`、`defaultModel: "gpt-6.2-sol"`、`defaultThinkingLevel: "high"`。`modelThinkingLevels` 声明各模型的默认 effort（两代 Sol 为 `high`、两代 Astra 为 `xhigh`、Argon、Hydrogen 和 Neon 为 `high`、DeepSeek 为 `high`），通过 `/model` 切换时也会应用；快捷轮换以 `enabledModels` 中的显式强度为准。实际启动仍受可用认证与命令行覆盖规则影响；继续历史会话会恢复原会话的模型和 effort。修改仓库中的设置后运行 `link.sh`，重新启动 Pi 使默认值与轮换列表生效。
+默认启动使用 `defaultProvider: "openai"`、`defaultModel: "gpt-6.2-sol"`、`defaultThinkingLevel: "high"`。`modelThinkingLevels` 声明各模型的默认 effort（两代 Sol 为 `high`、两代 Astra 为 `xhigh`、Argon 为 `high`、Hydrogen 和 Neon 为 `xhigh`、DeepSeek 为 `high`），通过 `/model` 切换时也会应用；快捷轮换以 `enabledModels` 中的显式强度为准。实际启动仍受可用认证与命令行覆盖规则影响；继续历史会话会恢复原会话的模型和 effort。修改仓库中的设置后运行 `link.sh`，重新启动 Pi 使默认值与轮换列表生效。
 
 这里只限制快捷轮换范围，仍可用 `/model` 选择其他已接入模型。不需要预设扩展、提示词模板或 Skill。
 
