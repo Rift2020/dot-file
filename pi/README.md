@@ -174,7 +174,7 @@ Jina Reader 是最后一道兜底。2026-10-16 实测它救回了本机抓取失
 
 已安装文档解析扩展 `pi-docparser`，固定版本 4.0.0（`pi update` 不会移动固定版本），提供 `document_parse`、`document_search`、`document_screenshot`：本地解析 PDF、按短语查页码、把页面渲染成图片；Office 转换需要另装 LibreOffice。
 
-已安装 `pi-claude-bridge`，固定版本 0.13.0，用 Claude 订阅（目前是 Pro）的额度在 Pi 里用 Claude。`Ctrl+L` 后按 Tab 切到全部模型，选 `claude-bridge/…`；不要选 `anthropic/…`，那是 Pi 自带的接入，按 API 计费。插件经官方 Claude Agent SDK 启动 Claude Code，工具仍由 Pi 执行；登录用 Claude Code 自己的（`claude auth login`），不是 Pi 的 `/login`。Anthropic 帮助文章（10-07 更新）说，用套餐登录时 Agent SDK 的用量算订阅额度；服务器另外按系统提示判断是不是第三方应用，判中的请求转到 Extra Usage，没开就报 400 "out of extra usage"，插件会提示。插件作者 11-10 实测，Pi 1.4.0 的默认提示会被判中，1.5 起的不会。
+已安装 `pi-claude-bridge`，固定版本 0.13.1，用 Claude 订阅（目前是 Pro）的额度在 Pi 里用 Claude。`Ctrl+L` 后按 Tab 切到全部模型，选 `claude-bridge/…`；不要选 `anthropic/…`，那是 Pi 自带的接入，按 API 计费。插件经官方 Claude Agent SDK 启动 Claude Code，工具仍由 Pi 执行；登录用 Claude Code 自己的（`claude auth login`），不是 Pi 的 `/login`。Anthropic 帮助文章（10-07 更新）说，用套餐登录时 Agent SDK 的用量算订阅额度；服务器另外按系统提示判断是不是第三方应用，判中的请求转到 Extra Usage，没开就报 400 "out of extra usage"，插件会提示。插件作者 11-10 实测，Pi 1.4.0 的默认提示会被判中，1.5 起的不会。
 
 `claude-bridge.json` 设 `systemPromptPreset: false`：只发 Pi 渲染的系统提示，前面不加 Claude Code 自己的预设，免得把编程 CLI 的身份和“要简短”一类规则带回来（base-prompt 去掉的正是这些）。作者 11-11 实测，这种形式同样算订阅额度。代价有三条。系统提示一变（learn 的记忆换了版本，或改了 AGENTS.md 后 `/reload`），下一轮就要把整段对话重新导入一个新的 Claude Code 会话，不走缓存。Claude Code 会在 `~/.claude/projects/<启动目录>/` 另存一份对话，默认 30 天后清理，learn 的 `/temp` 凌晨删不到它。没写超时的 bash 命令一律 120 秒。额度和直接用 Claude Code 共用一份。
 
@@ -231,7 +231,7 @@ pi --version
 pi install npm:pi-web-access
 pi install npm:@reedchan/statusline@1.11.3
 pi install npm:pi-docparser@4.0.0
-pi install npm:pi-claude-bridge@0.13.0   # 另需 Claude Code 已登录（claude auth login）
+pi install npm:pi-claude-bridge@0.13.1   # 另需 Claude Code 已登录（claude auth login）
 sh ~/.config/pi/link.sh   # 装好插件后再运行一次，给状态栏打补丁
 ```
 
