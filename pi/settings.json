@@ -25,6 +25,7 @@
   "enabledModels": [
     "openai/gpt-6.2-sol:high",
     "openai/gpt-6.2-astra:xhigh",
+    "claude-bridge/claude-opus-5-5:xhigh",
     "google-vertex/gemini-4-neon:xhigh",
     "opencode-go/deepseek-v4.1-flash:high"
   ],
