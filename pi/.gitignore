@@ -17,6 +17,7 @@
 !test-idle-notify.mjs
 !test-subagent.mjs
 !test-external-agents.mjs
+!test-background-service-tier.mjs
 !extensions/
 !extensions/base-prompt.ts
 !extensions/prompt-export.ts
@@ -25,6 +26,7 @@
 !extensions/turn-time.ts
 !extensions/idle-notify.ts
 !extensions/subagent.ts
+!extensions/background-service-tier.ts
 !skills/
 !skills/external-agents/
 !skills/external-agents/SKILL.md

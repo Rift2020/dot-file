@@ -17,6 +17,7 @@
 | `extensions/paste-image.ts` | 全局扩展：SSH 连到 kitty 时，`Ctrl+V` 经 kitty 读取本地剪贴板里的图片 |
 | `extensions/turn-time.ts` | 全局扩展：仿 Claude Code，运行中输入框边框显示 `Working 1m 5s`，结束后在对话里补一行 `✻ Worked for 5m 26s · done 14:16`；只在终端显示，不写入会话 |
 | `extensions/idle-notify.ts` | 全局扩展：仿 Claude Code，回复结束时 kitty 窗口不在焦点上、一分钟内也没切回来，就弹一条 kitty 通知（见下文） |
+| `extensions/background-service-tier.ts` | 全局扩展：非交互 OpenAI 请求固定 Standard，保留手动会话保存的 Fast 开关（见下文） |
 | `extensions/subagent.ts` | 全局扩展：`subagent` 工具，派几个子代理并行做事、各自交回结论；最多两层，只在前台运行，模型限 flash 和 sol；`/subagent-clean` 清理子代理目录（见下文） |
 | `skills/external-agents/` | 全局 skill：用户点名时把任务交给本机的 Codex（`codex exec`）或 Claude Code（`claude -p`），需要时让它们自己开子代理；`claude-progress.py` 把 Claude Code 的运行过程显示成每个子代理一行（见下文） |
 | `skills/html-page/` | 全局 skill：用户点名时把这一次的回答做成一页带图表的 HTML 页面（answer-me-with-html）；只在装了它的机器上链接（见下文） |
@@ -30,6 +31,7 @@
 | `test-external-agents.mjs` | `claude-progress.py` 的进度行、结论、失败与被拒工具的测试（喂假的事件流，不调用 Claude） |
 | `test-turn-time.mjs` | 用时格式、实时计时、结束行，以及只在终端显示的测试 |
 | `test-idle-notify.mjs` | 通知转义码，以及离开、切回、中断、新一轮、关闭各种情况下发不发的测试 |
+| `test-background-service-tier.mjs` | 验证交互保留 Fast、后台固定 Standard，以及两个扩展的加载顺序 |
 | `test-subagent.mjs` | 子代理的并行与排队、追问、嵌套层数、工具档位、沙箱、中断、抖动重试、花费合计与目录清理的测试（用 Pi 的假模型，不联网） |
 | `.gitignore` | 使用显式白名单，避免凭据、会话、缓存和运行状态误入 Git |
 
@@ -180,7 +182,11 @@ Jina Reader 是最后一道兜底。2026-10-16 实测它救回了本机抓取失
 
 实测（2026-11-25，Mac 的 learn 终端聊天，`/temp` 会话，Opus 5.5 high）：它答对了系统提示里的星期，并经 Pi 的 bash 跑了命令。服务器按五小时套餐窗口计（`rateLimitType: five_hour`，`isUsingOverage: false`）。这个账号的 Extra Usage 是关的（`org_level_disabled`），所以被误判也只会报 400，不会扣钱。系统提示加工具约 1.98 万 token，第二次请求全部命中缓存。
 
-不装 Fast（`service_tier: "priority"`）：2026-10-29 实测 GPT-6.1 Sol 经 ChatGPT 登录请求 priority 看不出提速，后端也只回报 `default`；公开讨论里第三方客户端都是如此，只有官方 Codex 客户端的请求会被加速。
+Fast 使用社区 [pi-gpt-fast-extension](https://github.com/dingdinglz/pi-gpt-fast-extension)，固定在 1.3.0 的提交 `0f635de`（11-18）。`/fast on`、`/fast off` 和 `/fast` 保存最后一次开关；新会话、`/new`、`/resume`、`/reload` 和重启恢复该状态，`/fast status` 查看状态。首次默认关闭。插件只在请求里加 `service_tier: "priority"`，不改变 thinking、模型、提示或工具，也不冒充 Codex 客户端。状态文件 `~/.pi/agent/extensions/fast-mode.json` 留在本机，不提交 Git；两台机器上它的 `models` 只列 `openai/gpt-6.2-sol` 和 `openai/gpt-6.2-astra`，别的模型开着 Fast 也照常请求（`/fast status` 会说 inactive）。新模型实测有加速再加进去。
+
+实测（2026-11-28，Mac，经 ChatGPT 登录，low 推理，约 350 token 输出，开关交替成对）：GPT-6.2 Sol 6 对，50 → 71 tok/s，每对 1.39–1.50 倍；GPT-6.2 Astra 6 对，32 → 51 tok/s，每对 1.29–1.81 倍。首个 token 都在 2 秒上下，不变，所以短回复的总耗时省得少一些。GPT-6.1 Sol 4 对没有加速（0.76–0.94 倍），10-29 测它看不出提速正是这个原因。后端回报的 `service_tier` 一律是 `default`，不能拿来判断。Fast 按两倍消耗套餐额度。
+
+`background-service-tier.ts` 对非 TUI 的 OpenAI 请求（print、JSON、RPC）明确设置 `service_tier: "default"`，包括 learn 的摘要、选材与阅读加工；不会修改 Fast 状态文件。learn 的手机聊天例外：它以 RPC 模式运行、对面是人，进程带 `LEARN_MANUAL_SESSION=1`，和终端一样沿用 `/fast`。社区插件尊重已有 `service_tier`，因此无论这两个扩展的加载顺序如何，后台都保持普通档位。learn 的整理不加载全局插件，不读取 Fast 开关；recap 用 runtime 直接调用，子代理的会话不加载全局扩展，都不经过社区插件。
 
 不额外安装搜索 MCP、多代理插件或长期记忆系统（子代理用上面自写的扩展）；不创建固定 Chat / Work 工作目录。模型与推理强度按下方轮换列表设置。当前不包含自定义提示词模板；自带的 skill 只有上面的外部代理和 HTML 页面。
 
@@ -232,6 +238,7 @@ pi install npm:pi-web-access
 pi install npm:@reedchan/statusline@1.11.3
 pi install npm:pi-docparser@4.0.0
 pi install npm:pi-claude-bridge@0.13.1   # 另需 Claude Code 已登录（claude auth login）
+pi install git:github.com/dingdinglz/pi-gpt-fast-extension@0f635deed0e1d6af277104b73c1c648e25458161
 sh ~/.config/pi/link.sh   # 装好插件后再运行一次，给状态栏打补丁
 ```
 
@@ -253,7 +260,7 @@ sh ~/.config/pi/link.sh   # 装好插件后再运行一次，给状态栏打补�
 
 ```sh
 sh -n ~/.config/pi/link.sh
-node --test ~/.config/pi/test-link.mjs ~/.config/pi/test-base-prompt.mjs ~/.config/pi/test-prompt-export.mjs ~/.config/pi/test-recap.mjs ~/.config/pi/test-paste-image.mjs ~/.config/pi/test-turn-time.mjs ~/.config/pi/test-idle-notify.mjs ~/.config/pi/test-subagent.mjs ~/.config/pi/test-external-agents.mjs
+node --test ~/.config/pi/test-link.mjs ~/.config/pi/test-base-prompt.mjs ~/.config/pi/test-prompt-export.mjs ~/.config/pi/test-recap.mjs ~/.config/pi/test-paste-image.mjs ~/.config/pi/test-turn-time.mjs ~/.config/pi/test-idle-notify.mjs ~/.config/pi/test-subagent.mjs ~/.config/pi/test-external-agents.mjs ~/.config/pi/test-background-service-tier.mjs
 ```
 
 测试使用临时目录，不接触本机认证、会话或实际配置。

@@ -36,6 +36,7 @@
     "npm:pi-web-access",
     "npm:@reedchan/statusline@1.11.3",
     "npm:pi-docparser@4.0.0",
-    "npm:pi-claude-bridge@0.13.1"
+    "npm:pi-claude-bridge@0.13.1",
+    "git:github.com/dingdinglz/pi-gpt-fast-extension@0f635deed0e1d6af277104b73c1c648e25458161"
   ]
 }

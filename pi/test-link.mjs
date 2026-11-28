@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 const config = dirname(fileURLToPath(import.meta.url));
-const LINKED = ["AGENTS.md", "extensions/base-prompt.ts", "extensions/prompt-export.ts", "extensions/recap.ts", "extensions/paste-image.ts", "extensions/turn-time.ts", "extensions/idle-notify.ts", "extensions/subagent.ts", "skills/external-agents/SKILL.md", "skills/external-agents/claude-progress.py"];
+const LINKED = ["AGENTS.md", "extensions/base-prompt.ts", "extensions/prompt-export.ts", "extensions/recap.ts", "extensions/paste-image.ts", "extensions/turn-time.ts", "extensions/idle-notify.ts", "extensions/subagent.ts", "extensions/background-service-tier.ts", "skills/external-agents/SKILL.md", "skills/external-agents/claude-progress.py"];
 const HTML_SKILL = "skills/html-page/SKILL.md";
 function fixture(t) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), "pi-dotfiles-")));
